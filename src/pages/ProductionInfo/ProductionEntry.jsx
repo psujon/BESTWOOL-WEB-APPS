@@ -1,21 +1,126 @@
-import React, { useState } from 'react';
-import { PlayCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Edit3, Plus, Trash2, Save, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function ProductionEntry({ token }) {
-  const [style, setStyle] = useState('ST-9902');
-  const [buyer, setBuyer] = useState('H&M');
-  const [qty, setQty] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isError, setIsError] = useState(false);
+  const [sections, setSections] = useState([]);
+  const [styles, setStyles] = useState([]);
+  const [processes, setProcesses] = useState([]);
+  const [colors, setColors] = useState([]);
 
+  // Form Fields
+  const [sectionId, setSectionId] = useState('');
+  const [styleId, setStyleId] = useState('');
+  const [processId, setProcessId] = useState('');
+  const [colorId, setColorId] = useState('');
+  const [productionDate, setProductionDate] = useState(getTodayDateString());
+
+  // Dynamic Card Items List
+  const [cards, setCards] = useState([
+    { id: 1, card_no: '', quantity: '' }
+  ]);
+
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchSections();
+    fetchStyles();
+    fetchProcesses();
+    fetchColors();
+  }, []);
+
+  const fetchSections = () => {
+    fetch('http://localhost:5000/api/sections', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setSections(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Error fetching sections:', err));
+  };
+
+  const fetchStyles = () => {
+    fetch('http://localhost:5000/api/styles', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setStyles(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Error fetching styles:', err));
+  };
+
+  const fetchProcesses = () => {
+    fetch('http://localhost:5000/api/processes', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setProcesses(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Error fetching processes:', err));
+  };
+
+  const fetchColors = () => {
+    fetch('http://localhost:5000/api/colors', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setColors(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Error fetching colors:', err));
+  };
+
+  // Card Rows Management
+  const handleAddCardRow = () => {
+    setCards(prev => [
+      ...prev,
+      { id: Date.now(), card_no: '', quantity: '' }
+    ]);
+  };
+
+  const handleRemoveCardRow = (id) => {
+    if (cards.length === 1) {
+      toast.error('কমপক্ষে ১ টি কার্ড রেকর্ড থাকা প্রয়োজন!');
+      return;
+    }
+    setCards(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleCardChange = (id, field, value) => {
+    setCards(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+
+  // Submit Handler
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!qty || isNaN(qty)) return;
 
-    setLoading(true);
-    setMessage('');
-    setIsError(false);
+    if (!sectionId || !styleId || !processId || !colorId || !productionDate) {
+      toast.error('দয়া করে সেকশন, স্টাইল, প্রসেস, কালার ও প্রোডাকশন ডেট নির্বাচন করুন!');
+      return;
+    }
+
+    const validCards = cards.filter(c => c.card_no.trim() !== '' && parseInt(c.quantity) > 0);
+    if (validCards.length === 0) {
+      toast.error('কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও কোয়ান্টিটি ইনপুট দিন!');
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      section_id: parseInt(sectionId),
+      style_id: parseInt(styleId),
+      process_id: parseInt(processId),
+      color_id: parseInt(colorId),
+      production_date: productionDate,
+      items: validCards.map(c => ({
+        card_no: c.card_no,
+        quantity: parseInt(c.quantity)
+      }))
+    };
 
     fetch('http://localhost:5000/api/production', {
       method: 'POST',
@@ -23,98 +128,208 @@ export default function ProductionEntry({ token }) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ style, buyer, qty: parseInt(qty) })
+      body: JSON.stringify(payload)
     })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to record production entry');
-        return res.json();
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to record production');
+        return data;
       })
-      .then(data => {
-        setLoading(false);
-        setMessage('✅ প্রোডাকশন এন্ট্রি সফলভাবে সম্পন্ন হয়েছে!');
-        setQty('');
+      .then((data) => {
+        toast.success(data.message || 'সবগুলো কার্ডের প্রোডাকশন এন্ট্রি সফলভাবে ডাটাবেজে সংরক্ষণ করা হয়েছে!');
+        setCards([{ id: Date.now(), card_no: '', quantity: '' }]);
+        setSaving(false);
       })
       .catch(err => {
-        setLoading(false);
-        setMessage(`❌ ${err.message}`);
-        setIsError(true);
+        toast.error(err.message);
+        setSaving(false);
       });
   };
+
+  const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
+
+  const filteredColors = colors.filter(c => 
+    c.section_id === parseInt(sectionId) && 
+    c.style_id === parseInt(styleId) && 
+    c.process_id === parseInt(processId)
+  );
+
+  const totalQuantity = cards.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
 
   return (
     <div className="space-y-6">
       <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        দৈনিক প্রোডাকশন এন্ট্রি ফর্ম। কারখানার ফ্লোর থেকে সম্পন্ন করা কাজের পরিমাণ এখানে এন্ট্রি করুন। এই তথ্য রিয়েল-টাইমে ড্যাশবোর্ড ও প্রোডাকশন শো পেইজে যুক্ত হবে।
+        ডেইলি প্রোডাকশন এন্ট্রি ফর্ম। একই সেকশন, স্টাইল, প্রসেস ও কালারের অধীনে একসাথে একাধিক কার্ড নম্বর ও কোয়ান্টিটি এন্ট্রি করুন।
       </div>
 
-      <div className="max-w-xl bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full mx-auto">
-        <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
-          <PlayCircle size={18} className="text-sky-400" />
-          प्रোডাকশন এন্ট্রি করুন
-        </h3>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Top Header Card Selection Panel */}
+        <div className="bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
+          <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2 pb-3 border-b border-white/6">
+            <Edit3 size={18} className="text-sky-400" />
+            প্রোডাকশন ব্যাচ ও ক্যাটাগরি নির্বাচন
+          </h3>
 
-        {message && (
-          <div 
-            className={`mb-5 p-3.5 border rounded-lg text-sm ${
-              isError 
-                ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-            }`}
-          >
-            {message}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
+              <select 
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={sectionId} 
+                onChange={(e) => {
+                  setSectionId(e.target.value);
+                  setProcessId(''); 
+                  setColorId('');
+                }} 
+                required
+              >
+                <option value="">Select Section</option>
+                {sections?.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
+              <select 
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={styleId} 
+                onChange={(e) => {
+                  setStyleId(e.target.value);
+                  setColorId('');
+                }} 
+                required
+              >
+                <option value="">Select Style</option>
+                {styles?.map((st) => (
+                  <option key={st.id} value={st.id}>{st.style_no}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রসেস *</label>
+              <select 
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={processId} 
+                onChange={(e) => {
+                  setProcessId(e.target.value);
+                  setColorId('');
+                }} 
+                required
+                disabled={!sectionId}
+              >
+                <option value="">{sectionId ? "Select Process" : "Select section first"}</option>
+                {filteredProcesses.map((p) => (
+                  <option key={p.id} value={p.id}>{p.process_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">রং (Color) *</label>
+              <select 
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={colorId} 
+                onChange={(e) => setColorId(e.target.value)} 
+                required
+                disabled={!processId || !styleId}
+              >
+                <option value="">{processId && styleId ? "Select Color" : "Select process & style"}</option>
+                {filteredColors.map((c) => (
+                  <option key={c.id} value={c.id}>{c.color_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রোডাকশন ডেট *</label>
+              <input 
+                type="date" 
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={productionDate} 
+                onChange={(e) => setProductionDate(e.target.value)} 
+                required 
+              />
+            </div>
           </div>
-        )}
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল কোড *</label>
-            <select 
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-              value={style} 
-              onChange={(e) => setStyle(e.target.value)}
+        {/* Dynamic Card Numbers & Quantity Panel */}
+        <div className="bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/6">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-100">কার্ড নম্বর ও কোয়ান্টিটি লিস্ট</h3>
+              <p className="text-xs text-slate-400 mt-0.5">একসাথে একাধিক কার্ডের উৎপাদন পরিমাণ ইনপুট দিন</p>
+            </div>
+            <button 
+              type="button" 
+              onClick={handleAddCardRow}
+              className="bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 text-sky-400 text-xs font-semibold py-2 px-3.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              <option value="ST-9902">ST-9902 (H&M Crewneck)</option>
-              <option value="PL-5510">PL-5510 (Zara Polo)</option>
-              <option value="JN-8032">JN-8032 (Levi Denim)</option>
-              <option value="HD-1022">HD-1022 (Walmart Hoodie)</option>
-            </select>
+              <Plus size={16} />
+              <span>নতুন কার্ড সারির সারি যোগ করুন</span>
+            </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
-            <select 
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-              value={buyer} 
-              onChange={(e) => setBuyer(e.target.value)}
+          <div className="space-y-3">
+            {cards.map((item, index) => (
+              <div key={item.id} className="flex items-center gap-4 bg-[#0b0f19]/40 border border-white/6 p-3 rounded-xl">
+                <span className="text-xs font-bold text-slate-400 w-8 shrink-0">#{index + 1}</span>
+
+                <div className="flex-1">
+                  <input 
+                    type="text" 
+                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                    value={item.card_no}
+                    onChange={(e) => handleCardChange(item.id, 'card_no', e.target.value)}
+                    placeholder="কার্ড নম্বর (উদা. CARD-1001)"
+                    required
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <input 
+                    type="number" 
+                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                    value={item.quantity}
+                    onChange={(e) => handleCardChange(item.id, 'quantity', e.target.value)}
+                    placeholder="কোয়ান্টিটি (pcs)"
+                    required
+                  />
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={() => handleRemoveCardRow(item.id)}
+                  className="w-9 h-9 border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                  title="এই সারির কার্ড মুছে ফেলুন"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer Actions & Total Calculation */}
+          <div className="pt-4 border-t border-white/6 flex items-center justify-between">
+            <div className="text-sm text-slate-300">
+              মোট রেকর্ড: <strong className="text-sky-400">{cards.length}</strong> টি কার্ড | 
+              মোট কোয়ান্টিটি: <strong className="text-emerald-400">{totalQuantity.toLocaleString()}</strong> pcs
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={saving}
+              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer flex items-center gap-2 text-sm"
             >
-              <option value="H&M">H&M</option>
-              <option value="Zara">Zara</option>
-              <option value="Levi Strauss & Co.">Levi Strauss & Co.</option>
-              <option value="Walmart Inc.">Walmart Inc.</option>
-            </select>
+              <Save size={18} />
+              <span>{saving ? 'সংরক্ষণ হচ্ছে...' : 'সবগুলো কার্ড একসাথে সংরক্ষণ করুন'}</span>
+            </button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">উৎপাদন কোয়ান্টিটি (pcs) *</label>
-            <input 
-              type="number" 
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              placeholder="উদাহরন: 500" 
-              required
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold pt-2"
-            disabled={loading}
-          >
-            {loading ? 'সংরক্ষণ করা হচ্ছে...' : 'সংরক্ষণ করুন'}
-          </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }

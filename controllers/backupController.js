@@ -12,6 +12,7 @@ exports.getAll = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
+  const userId = req.user ? req.user.id : null;
   try {
     const dateStr = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
     const filename = `garments_db_backup_${dateStr}.sql`;
@@ -21,7 +22,9 @@ exports.create = async (req, res) => {
       data: {
         backup_name: filename,
         status: 'Success',
-        file_size: size
+        file_size: size,
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
 

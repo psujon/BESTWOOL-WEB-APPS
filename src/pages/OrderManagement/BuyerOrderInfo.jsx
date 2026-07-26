@@ -18,7 +18,7 @@ export default function BuyerOrderInfo({ token }) {
   const [processId, setProcessId] = useState('');
   const [colorId, setColorId] = useState('');
   const [orderQuantity, setOrderQuantity] = useState('');
-  
+
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
@@ -201,17 +201,14 @@ export default function BuyerOrderInfo({ token }) {
   const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
 
   // Dynamically filter colors based on section, style, and process
-  const filteredColors = colors.filter(c => 
-    c.section_id === parseInt(sectionId) && 
-    c.style_id === parseInt(styleId) && 
+  const filteredColors = colors.filter(c =>
+    c.section_id === parseInt(sectionId) &&
+    c.style_id === parseInt(styleId) &&
     c.process_id === parseInt(processId)
   );
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        বায়ার অর্ডার ইনফরমেশন (Purchase Order Details)। পোশাকের বিভিন্ন সেকশন, বায়ার, স্টাইল, প্রসেস এবং কালার অনুযায়ী অর্ডার কোয়ান্টিটি ও রিসিভড ইয়ার্ন কোয়ান্টিটি রেকর্ড ও ট্র্যাকিং করা হয়।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Buyer Order Form */}
@@ -223,14 +220,14 @@ export default function BuyerOrderInfo({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={sectionId} 
+                value={sectionId}
                 onChange={(e) => {
                   setSectionId(e.target.value);
-                  setProcessId(''); 
+                  setProcessId('');
                   setColorId('');
-                }} 
+                }}
                 required
               >
                 <option value="">Select Section</option>
@@ -242,10 +239,10 @@ export default function BuyerOrderInfo({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={buyerId} 
-                onChange={(e) => setBuyerId(e.target.value)} 
+                value={buyerId}
+                onChange={(e) => setBuyerId(e.target.value)}
                 required
               >
                 <option value="">Select Buyer</option>
@@ -257,13 +254,13 @@ export default function BuyerOrderInfo({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={styleId} 
+                value={styleId}
                 onChange={(e) => {
                   setStyleId(e.target.value);
-                  setColorId(''); 
-                }} 
+                  setColorId('');
+                }}
                 required
               >
                 <option value="">Select Style</option>
@@ -275,13 +272,13 @@ export default function BuyerOrderInfo({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={processId} 
+                value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
-                  setColorId(''); 
-                }} 
+                  setColorId('');
+                }}
                 required
                 disabled={!sectionId}
               >
@@ -294,10 +291,10 @@ export default function BuyerOrderInfo({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={colorId} 
-                onChange={(e) => setColorId(e.target.value)} 
+                value={colorId}
+                onChange={(e) => setColorId(e.target.value)}
                 required
                 disabled={!processId || !styleId}
               >
@@ -310,13 +307,13 @@ export default function BuyerOrderInfo({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">অর্ডার কোয়ান্টিটি (pcs) *</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={orderQuantity} 
-                onChange={(e) => setOrderQuantity(e.target.value)} 
-                placeholder="15000" 
-                required 
+                value={orderQuantity}
+                onChange={(e) => setOrderQuantity(e.target.value)}
+                placeholder="15000"
+                required
               />
             </div>
 
@@ -325,9 +322,9 @@ export default function BuyerOrderInfo({ token }) {
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'অর্ডার যুক্ত করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-sm"
                 >
                   <XCircle size={16} />
@@ -389,15 +386,15 @@ export default function BuyerOrderInfo({ token }) {
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(item)} 
+                            <button
+                              onClick={() => handleEdit(item)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(item.id)} 
+                            <button
+                              onClick={() => handleDelete(item.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >

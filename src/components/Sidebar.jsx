@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, Layers, UserCheck, Bookmark, ListChecks, DollarSign, Truck, ShoppingBag,
-  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette
+  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, ChevronLeft
 } from 'lucide-react';
 
-export default function Sidebar({ permissions, user, sidebarOpen }) {
+export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen }) {
   const location = useLocation();
 
   // Accordion open/close states
@@ -18,13 +18,13 @@ export default function Sidebar({ permissions, user, sidebarOpen }) {
   // Automatically keep accordions open if one of their sub-links is active
   useEffect(() => {
     const path = location.pathname;
-    if (['/dashboard/buyer', '/dashboard/style', '/dashboard/process', '/dashboard/color', '/dashboard/piece-rate', '/dashboard/buyer-order-info', '/dashboard/yarn-challan'].some(p => path.startsWith(p))) {
+    if (['/dashboard/buyer', '/dashboard/style', '/dashboard/process', '/dashboard/color', '/dashboard/piece-rate', '/dashboard/buyer-order-info', '/dashboard/yarn-challan', '/dashboard/employee-info'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, orderManagement: true }));
     }
     if (['/dashboard/production-entry', '/dashboard/production-show'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, productionInfo: true }));
     }
-    if (['/dashboard/user', '/dashboard/user-permission', '/dashboard/section'].some(p => path.startsWith(p))) {
+    if (['/dashboard/user', '/dashboard/user-permission', '/dashboard/section', '/dashboard/company-profile'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, settings: true }));
     }
   }, [location.pathname]);
@@ -58,14 +58,25 @@ export default function Sidebar({ permissions, user, sidebarOpen }) {
 
   return (
     <aside className={`w-[280px] bg-[#131b2e] border-r border-white/6 flex flex-col h-screen fixed left-0 top-0 transition-transform duration-300 z-40 ${
-      sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
     }`}>
       {/* Header */}
-      <div className="h-[70px] border-b border-white/6 px-6 flex items-center gap-3 shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/10">
-          <Layers size={18} />
+      <div className="h-[70px] border-b border-white/6 px-5 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/10">
+            <Layers size={18} />
+          </div>
+          <span className="font-sans font-bold text-slate-100 tracking-wide text-sm">BEST WOOL APP</span>
         </div>
-        <span className="font-sans font-bold text-slate-100 tracking-wide text-sm">BEST WOOL APP</span>
+        {setSidebarOpen && (
+          <button 
+            onClick={() => setSidebarOpen(false)}
+            className="w-8 h-8 rounded-lg border border-white/6 text-slate-400 hover:text-slate-100 hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer"
+            title="সাইডবার লুকান (Hide Sidebar)"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
       </div>
 
       {/* Navigation Menus */}
@@ -190,6 +201,17 @@ export default function Sidebar({ permissions, user, sidebarOpen }) {
           </div>
         )}
 
+        {/* --- Employee Info Top Level Main Menu --- */}
+        {hasPermission('employee_info') && (
+          <NavLink 
+            to="/dashboard/employee-info" 
+            className={({ isActive }) => getMenuItemClass(isActive)}
+          >
+            <UserCheck size={18} />
+            <span>ইমপ্লয়ী ইনফো</span>
+          </NavLink>
+        )}
+
         {/* --- 3. Settings Accordion --- */}
         {(hasPermission('user') || hasPermission('user_permission')) && (
           <div className="space-y-1">
@@ -228,6 +250,12 @@ export default function Sidebar({ permissions, user, sidebarOpen }) {
                 <NavLink to="/dashboard/section" className={({ isActive }) => getMenuItemClass(isActive)}>
                   <Layers size={16} />
                   <span>সেকশন (Section)</span>
+                </NavLink>
+              )}
+              {hasPermission('company_profile') && (
+                <NavLink to="/dashboard/company-profile" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <Building2 size={16} />
+                  <span>কোম্পানী প্রোফাইল</span>
                 </NavLink>
               )}
             </div>

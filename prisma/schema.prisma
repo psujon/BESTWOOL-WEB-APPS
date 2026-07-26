@@ -31,151 +31,214 @@ model Permission {
 }
 
 model BackupHistory {
-  id          Int      @id @default(autoincrement())
-  backup_name String   @db.VarChar(255)
-  backup_date DateTime @default(now()) @db.Timestamp(0)
-  status      String   @default("Success") @db.VarChar(20)
-  file_size   String?  @db.VarChar(50)
+  id             Int       @id @default(autoincrement())
+  backup_name    String    @db.VarChar(255)
+  backup_date    DateTime  @default(now()) @db.Timestamp(0)
+  status         String    @default("Success") @db.VarChar(20)
+  file_size      String?   @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime? @default(now())
 
   @@map("backup_history")
 }
 
 model Production {
-  id    Int      @id @default(autoincrement())
-  style String   @db.VarChar(100)
-  buyer String   @db.VarChar(100)
-  qty   Int
-  date  DateTime @db.Date
+  id              Int       @id @default(autoincrement())
+  section_id      Int
+  style_id        Int
+  process_id      Int
+  color_id        Int
+  production_date DateTime  @db.Date
+  card_no         String    @db.VarChar(100)
+  quantity        Int
+  processed_by    Int?
+  processed_date  DateTime? @default(now())
+  section         Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  style           Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  process         Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
+  color           Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("production")
 }
 
 model Buyer {
-  id       Int          @id @default(autoincrement())
-  name     String       @db.VarChar(100)
-  country  String       @db.VarChar(100)
-  email    String?      @db.VarChar(100)
-  phone    String?      @db.VarChar(50)
-  styles   Style[]
-  processes Process[]
-  buyerOrders BuyerOrder[]
+  id             Int          @id @default(autoincrement())
+  name           String       @db.VarChar(100)
+  country        String       @db.VarChar(100)
+  email          String?      @db.VarChar(100)
+  phone          String?      @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime?    @default(now())
+  styles         Style[]
+  processes      Process[]
+  buyerOrders    BuyerOrder[]
 
   @@map("buyers")
 }
 
 model Style {
-  id           Int          @id @default(autoincrement())
-  style_no     String       @db.VarChar(100)
-  buyer_id     Int
-  status       String       @default("Running") @db.VarChar(50)
-  buyer        Buyer        @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
-  processes    Process[]
-  colors       Color[]
-  pieceRates   PieceRate[]
-  buyerOrders  BuyerOrder[]
-  yarnChallans YarnChallan[]
+  id             Int           @id @default(autoincrement())
+  style_no       String        @db.VarChar(100)
+  buyer_id       Int
+  status         String        @default("Running") @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime?     @default(now())
+  buyer          Buyer         @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
+  processes      Process[]
+  colors         Color[]
+  pieceRates     PieceRate[]
+  buyerOrders    BuyerOrder[]
+  yarnChallans   YarnChallan[]
+  productions    Production[]
 
   @@map("styles")
 }
 
 model Section {
-  id           Int          @id @default(autoincrement())
-  name         String       @db.VarChar(100)
-  code         String       @db.VarChar(50)
-  status       String       @default("Active") @db.VarChar(50)
-  processes    Process[]
-  colors       Color[]
-  pieceRates   PieceRate[]
-  buyerOrders  BuyerOrder[]
-  yarnChallans YarnChallan[]
+  id             Int           @id @default(autoincrement())
+  name           String        @db.VarChar(100)
+  code           String        @db.VarChar(50)
+  status         String        @default("Active") @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime?     @default(now())
+  processes      Process[]
+  colors         Color[]
+  pieceRates     PieceRate[]
+  buyerOrders    BuyerOrder[]
+  yarnChallans   YarnChallan[]
+  productions    Production[]
+  employees      Employee[]
 
   @@map("sections")
 }
 
 model Process {
-  id           Int          @id @default(autoincrement())
-  section_id   Int
-  buyer_id     Int
-  style_id     Int
-  process_name String       @db.VarChar(100)
-  type         String       @db.VarChar(50)
-  status       String       @default("Active") @db.VarChar(50)
-  section      Section      @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  buyer        Buyer        @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
-  style        Style        @relation(fields: [style_id], references: [id], onDelete: Cascade)
-  colors       Color[]
-  pieceRates   PieceRate[]
-  buyerOrders  BuyerOrder[]
-  yarnChallans YarnChallan[]
+  id             Int           @id @default(autoincrement())
+  section_id     Int
+  buyer_id       Int
+  style_id       Int
+  process_name   String        @db.VarChar(100)
+  type           String        @db.VarChar(50)
+  status         String        @default("Active") @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime?     @default(now())
+  section        Section       @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  buyer          Buyer         @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
+  style          Style         @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  colors         Color[]
+  pieceRates     PieceRate[]
+  buyerOrders    BuyerOrder[]
+  yarnChallans   YarnChallan[]
+  productions    Production[]
 
   @@map("processes")
 }
 
 model Color {
-  id           Int          @id @default(autoincrement())
-  section_id   Int
-  style_id     Int
-  process_id   Int
-  color_name   String       @db.VarChar(100)
-  section      Section      @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  style        Style        @relation(fields: [style_id], references: [id], onDelete: Cascade)
-  process      Process      @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  pieceRates   PieceRate[]
-  buyerOrders  BuyerOrder[]
-  yarnChallans YarnChallan[]
+  id             Int           @id @default(autoincrement())
+  section_id     Int
+  style_id       Int
+  process_id     Int
+  color_name     String        @db.VarChar(100)
+  processed_by   Int?
+  processed_date DateTime?     @default(now())
+  section        Section       @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  style          Style         @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  process        Process       @relation(fields: [process_id], references: [id], onDelete: Cascade)
+  pieceRates     PieceRate[]
+  buyerOrders    BuyerOrder[]
+  yarnChallans   YarnChallan[]
+  productions    Production[]
 
   @@map("colors")
 }
 
-
 model PieceRate {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   section_id     Int
   style_id       Int
   process_id     Int
   color_id       Int
-  rate           Decimal  @db.Decimal(10, 2)
-  effective_date DateTime @db.Date
-  section        Section  @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  style          Style    @relation(fields: [style_id], references: [id], onDelete: Cascade)
-  process        Process  @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color          Color    @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  rate           Decimal   @db.Decimal(10, 2)
+  effective_date DateTime  @db.Date
+  processed_by   Int?
+  processed_date DateTime? @default(now())
+  section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  style          Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  process        Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
+  color          Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("piece_rates")
 }
 
 model BuyerOrder {
-  id             Int     @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   section_id     Int
   buyer_id       Int
   style_id       Int
   process_id     Int
   color_id       Int
   order_quantity Int
-  yarn_received  Int     @default(0)
-  section        Section @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  buyer          Buyer   @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
-  style          Style   @relation(fields: [style_id], references: [id], onDelete: Cascade)
-  process        Process @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color          Color   @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  yarn_received  Int       @default(0)
+  processed_by   Int?
+  processed_date DateTime? @default(now())
+  section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  buyer          Buyer     @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
+  style          Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  process        Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
+  color          Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("buyer_orders")
 }
 
 model YarnChallan {
-  id           Int      @id @default(autoincrement())
-  section_id   Int
-  style_id     Int
-  process_id   Int
-  color_id     Int
-  challan_no   String   @db.VarChar(100)
-  gate_pass_no String   @db.VarChar(100)
-  challan_date DateTime @db.Date
-  quantity     Int
-  section      Section  @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  style        Style    @relation(fields: [style_id], references: [id], onDelete: Cascade)
-  process      Process  @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color        Color    @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  id             Int       @id @default(autoincrement())
+  section_id     Int
+  style_id       Int
+  process_id     Int
+  color_id       Int
+  challan_no     String    @db.VarChar(100)
+  gate_pass_no   String    @db.VarChar(100)
+  challan_date   DateTime  @db.Date
+  quantity       Int
+  processed_by   Int?
+  processed_date DateTime? @default(now())
+  section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  style          Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  process        Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
+  color          Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("yarn_challans")
 }
+
+model CompanyProfile {
+  id             Int       @id @default(autoincrement())
+  company_name   String    @db.VarChar(150)
+  tagline        String?   @db.VarChar(255)
+  email          String?   @db.VarChar(100)
+  phone          String?   @db.VarChar(50)
+  address        String?   @db.Text
+  website        String?   @db.VarChar(100)
+  tax_id         String?   @db.VarChar(100)
+  logo_url       String?   @db.LongText
+  processed_by   Int?
+  processed_date DateTime? @default(now())
+
+  @@map("company_profiles")
+}
+
+model Employee {
+  id             Int       @id @default(autoincrement())
+  card_no        String    @db.VarChar(50)
+  name           String    @db.VarChar(100)
+  designation    String    @db.VarChar(100)
+  join_date      DateTime  @db.Date
+  section_id     Int
+  status         String    @default("Active") @db.VarChar(20)
+  processed_by   Int?
+  processed_date DateTime? @default(now())
+  section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
+
+  @@map("employees")
+}
+

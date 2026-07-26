@@ -28,6 +28,10 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/backup', require('./routes/backups'));
 app.use('/api/sections', require('./routes/sections'));
 app.use('/api/colors', require('./routes/colors'));
+app.use('/api/company', require('./routes/company'));
+app.use('/api/employees', require('./routes/employees'));
+
+
 
 // --- Frontend Static Servicing in Production ---
 const distPath = path.join(__dirname, 'dist');

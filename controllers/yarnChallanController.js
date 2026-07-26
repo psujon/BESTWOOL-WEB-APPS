@@ -35,9 +35,9 @@ exports.create = async (req, res) => {
   const prId = parseInt(process_id);
   const colId = parseInt(color_id);
   const qty = parseInt(quantity);
+  const userId = req.user ? req.user.id : null;
 
   try {
-    // 1. Check if buyer order exists for this section, style, process, and color
     const buyerOrder = await prisma.buyerOrder.findFirst({
       where: {
         section_id: secId,
@@ -53,7 +53,6 @@ exports.create = async (req, res) => {
       });
     }
 
-    // 2. Check if new quantity exceeds remaining allowed order quantity
     const currentReceived = buyerOrder.yarn_received || 0;
     const availableQty = buyerOrder.order_quantity - currentReceived;
 
@@ -63,7 +62,6 @@ exports.create = async (req, res) => {
       });
     }
 
-    // 3. Create yarn challan and update buyer order yarn_received in a transaction
     const challan = await prisma.$transaction(async (tx) => {
       const created = await tx.yarnChallan.create({
         data: {
@@ -74,14 +72,18 @@ exports.create = async (req, res) => {
           challan_no,
           gate_pass_no,
           challan_date: new Date(challan_date),
-          quantity: qty
+          quantity: qty,
+          processed_by: userId,
+          processed_date: new Date()
         }
       });
 
       await tx.buyerOrder.update({
         where: { id: buyerOrder.id },
         data: {
-          yarn_received: { increment: qty }
+          yarn_received: { increment: qty },
+          processed_by: userId,
+          processed_date: new Date()
         }
       });
 
@@ -103,6 +105,7 @@ exports.update = async (req, res) => {
   const prId = parseInt(process_id);
   const colId = parseInt(color_id);
   const newQty = parseInt(quantity);
+  const userId = req.user ? req.user.id : null;
 
   try {
     const existingChallan = await prisma.yarnChallan.findUnique({
@@ -113,7 +116,6 @@ exports.update = async (req, res) => {
       return res.status(404).json({ message: 'চালান পাওয়া যায়নি' });
     }
 
-    // Find target matching buyer order
     const targetBuyerOrder = await prisma.buyerOrder.findFirst({
       where: {
         section_id: secId,
@@ -129,7 +131,6 @@ exports.update = async (req, res) => {
       });
     }
 
-    // Check if target is same order as existing challan
     const isSameOrder = (
       existingChallan.section_id === secId &&
       existingChallan.style_id === stId &&
@@ -139,7 +140,7 @@ exports.update = async (req, res) => {
 
     let effectiveReceived = targetBuyerOrder.yarn_received || 0;
     if (isSameOrder) {
-      effectiveReceived -= existingChallan.quantity; // temporarily revert previous qty
+      effectiveReceived -= existingChallan.quantity;
     }
 
     const availableQty = targetBuyerOrder.order_quantity - effectiveReceived;
@@ -150,7 +151,6 @@ exports.update = async (req, res) => {
     }
 
     const updatedChallan = await prisma.$transaction(async (tx) => {
-      // Revert old buyer order yarn_received
       const oldBuyerOrder = await tx.buyerOrder.findFirst({
         where: {
           section_id: existingChallan.section_id,
@@ -164,11 +164,14 @@ exports.update = async (req, res) => {
         const newReceived = Math.max(0, oldBuyerOrder.yarn_received - existingChallan.quantity);
         await tx.buyerOrder.update({
           where: { id: oldBuyerOrder.id },
-          data: { yarn_received: newReceived }
+          data: { 
+            yarn_received: newReceived,
+            processed_by: userId,
+            processed_date: new Date()
+          }
         });
       }
 
-      // Update yarn challan
       const updated = await tx.yarnChallan.update({
         where: { id: challanId },
         data: {
@@ -179,15 +182,18 @@ exports.update = async (req, res) => {
           challan_no,
           gate_pass_no,
           challan_date: new Date(challan_date),
-          quantity: newQty
+          quantity: newQty,
+          processed_by: userId,
+          processed_date: new Date()
         }
       });
 
-      // Add to target buyer order yarn_received
       await tx.buyerOrder.update({
         where: { id: targetBuyerOrder.id },
         data: {
-          yarn_received: { increment: newQty }
+          yarn_received: { increment: newQty },
+          processed_by: userId,
+          processed_date: new Date()
         }
       });
 
@@ -203,6 +209,7 @@ exports.update = async (req, res) => {
 exports.delete = async (req, res) => {
   const { id } = req.params;
   const challanId = parseInt(id);
+  const userId = req.user ? req.user.id : null;
 
   try {
     const existingChallan = await prisma.yarnChallan.findUnique({
@@ -224,7 +231,11 @@ exports.delete = async (req, res) => {
           const newReceived = Math.max(0, buyerOrder.yarn_received - existingChallan.quantity);
           await tx.buyerOrder.update({
             where: { id: buyerOrder.id },
-            data: { yarn_received: newReceived }
+            data: { 
+              yarn_received: newReceived,
+              processed_by: userId,
+              processed_date: new Date()
+            }
           });
         }
 

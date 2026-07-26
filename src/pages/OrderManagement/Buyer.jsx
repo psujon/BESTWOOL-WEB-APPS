@@ -10,7 +10,7 @@ export default function Buyer({ token }) {
   const [country, setCountry] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  
+
   const [editingId, setEditingId] = useState(null);
 
   // Fetch buyers on mount
@@ -133,9 +133,6 @@ export default function Buyer({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        বায়ার ইনফরমেশন ম্যানেজমেন্ট পেজ। এখান থেকে সিস্টেমে নতুন বায়ার যুক্ত করা, সংশোধন (Edit) এবং ডিলিট (Delete) করা যাবে।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Form Card (Add/Edit) */}
@@ -147,55 +144,55 @@ export default function Buyer({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার এর নাম *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="উদা. H&M" 
-                required 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="উদা. H&M"
+                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">দেশ (Country) *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={country} 
-                onChange={(e) => setCountry(e.target.value)} 
-                placeholder="Sweden" 
-                required 
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Sweden"
+                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">ইমেইল এড্রেস</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="hm@buyer.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="hm@buyer.com"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">ফোন নম্বর</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                placeholder="+46 8 ..." 
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+46 8 ..."
               />
             </div>
-            
+
             <div className="flex gap-3 pt-2">
               <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold">
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'সংরক্ষণ করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-sm"
                 >
                   <XCircle size={16} />
@@ -245,15 +242,15 @@ export default function Buyer({ token }) {
                         <td className="py-3.5 px-4 text-slate-300">{buyer.phone || '—'}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(buyer)} 
+                            <button
+                              onClick={() => handleEdit(buyer)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(buyer.id)} 
+                            <button
+                              onClick={() => handleDelete(buyer.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >

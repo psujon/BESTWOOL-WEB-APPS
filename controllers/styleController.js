@@ -6,7 +6,6 @@ exports.getAll = async (req, res) => {
       include: { buyer: { select: { name: true } } },
       orderBy: { id: 'desc' }
     });
-    // Flatten buyer_name for frontend compatibility
     const result = styles.map(s => ({
       ...s,
       buyer_name: s.buyer?.name || null,
@@ -20,9 +19,16 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   const { style_no, buyer_id, status } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const style = await prisma.style.create({
-      data: { style_no, buyer_id: parseInt(buyer_id), status }
+      data: { 
+        style_no, 
+        buyer_id: parseInt(buyer_id), 
+        status,
+        processed_by: userId,
+        processed_date: new Date()
+      }
     });
     res.status(201).json(style);
   } catch (err) {
@@ -33,10 +39,17 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { style_no, buyer_id, status } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const style = await prisma.style.update({
       where: { id: parseInt(id) },
-      data: { style_no, buyer_id: parseInt(buyer_id), status }
+      data: { 
+        style_no, 
+        buyer_id: parseInt(buyer_id), 
+        status,
+        processed_by: userId,
+        processed_date: new Date()
+      }
     });
     res.json(style);
   } catch (err) {

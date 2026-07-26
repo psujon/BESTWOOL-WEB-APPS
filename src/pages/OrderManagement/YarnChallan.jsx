@@ -230,9 +230,6 @@ export default function YarnChallan({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        নতুন ইয়ার্ন চালান (Yarn Challan) এন্ট্রি পেজ।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Form Panel */}

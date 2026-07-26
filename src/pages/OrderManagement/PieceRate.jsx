@@ -24,7 +24,7 @@ export default function PieceRate({ token }) {
   const [colorId, setColorId] = useState('');
   const [rate, setRate] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(getTodayDateString());
-  
+
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
@@ -146,7 +146,7 @@ export default function PieceRate({ token }) {
     setProcessId(item.process_id || '');
     setColorId(item.color_id || '');
     setRate(item.rate.toString());
-    
+
     if (item.effective_date) {
       const dbDate = new Date(item.effective_date);
       const year = dbDate.getFullYear();
@@ -187,17 +187,14 @@ export default function PieceRate({ token }) {
 
   const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
 
-  const filteredColors = colors.filter(c => 
-    c.section_id === parseInt(sectionId) && 
-    c.style_id === parseInt(styleId) && 
+  const filteredColors = colors.filter(c =>
+    c.section_id === parseInt(sectionId) &&
+    c.style_id === parseInt(styleId) &&
     c.process_id === parseInt(processId)
   );
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        পিস রেট (Piece Rate) কনফিগারেশন পেজ। প্রতিটি সেকশন, স্টাইল, প্রসেস এবং কালার অনুযায়ী কর্মীদের পিস রেট (মজুরি হার) এখানে নির্ধারণ করা হয়।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Piece Rate Entry Form */}
@@ -209,14 +206,14 @@ export default function PieceRate({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={sectionId} 
+                value={sectionId}
                 onChange={(e) => {
                   setSectionId(e.target.value);
-                  setProcessId(''); 
+                  setProcessId('');
                   setColorId('');
-                }} 
+                }}
                 required
               >
                 <option value="">Select Section</option>
@@ -228,13 +225,13 @@ export default function PieceRate({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={styleId} 
+                value={styleId}
                 onChange={(e) => {
                   setStyleId(e.target.value);
-                  setColorId(''); 
-                }} 
+                  setColorId('');
+                }}
                 required
               >
                 <option value="">Select Style</option>
@@ -246,13 +243,13 @@ export default function PieceRate({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={processId} 
+                value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
-                  setColorId(''); 
-                }} 
+                  setColorId('');
+                }}
                 required
                 disabled={!sectionId}
               >
@@ -265,10 +262,10 @@ export default function PieceRate({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={colorId} 
-                onChange={(e) => setColorId(e.target.value)} 
+                value={colorId}
+                onChange={(e) => setColorId(e.target.value)}
                 required
                 disabled={!processId || !styleId}
               >
@@ -281,25 +278,25 @@ export default function PieceRate({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">রেট (টাকা / পিস) *</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="0.01"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={rate} 
-                onChange={(e) => setRate(e.target.value)} 
-                placeholder="45.00" 
-                required 
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder="45.00"
+                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">কার্যকর তারিখ (Effective Date) *</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={effectiveDate} 
-                onChange={(e) => setEffectiveDate(e.target.value)} 
-                required 
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                required
               />
             </div>
 
@@ -308,9 +305,9 @@ export default function PieceRate({ token }) {
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'রেট সংরক্ষণ করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-sm"
                 >
                   <XCircle size={16} />
@@ -368,15 +365,15 @@ export default function PieceRate({ token }) {
                         <td className="py-3.5 px-4 text-slate-450">{item.effective_date ? new Date(item.effective_date).toLocaleDateString() : '—'}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(item)} 
+                            <button
+                              onClick={() => handleEdit(item)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(item.id)} 
+                            <button
+                              onClick={() => handleDelete(item.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >

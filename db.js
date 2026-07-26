@@ -23,7 +23,7 @@ async function seedDatabase() {
         'dashboard', 'buyer', 'style', 'process', 'piece_rate',
         'buyer_order_info', 'yarn_challan', 'production_entry',
         'production_show', 'user', 'user_permission', 'database_backup',
-        'section', 'color'
+        'section', 'color', 'company_profile', 'employee_info'
       ];
 
       await prisma.permission.createMany({

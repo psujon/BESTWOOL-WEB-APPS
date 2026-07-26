@@ -30,6 +30,7 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   const { section_id, style_id, process_id, color_id, rate, effective_date } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const pieceRate = await prisma.pieceRate.create({
       data: {
@@ -38,7 +39,9 @@ exports.create = async (req, res) => {
         process_id: parseInt(process_id),
         color_id: parseInt(color_id),
         rate: parseFloat(rate),
-        effective_date: new Date(effective_date)
+        effective_date: new Date(effective_date),
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.status(201).json(pieceRate);
@@ -50,6 +53,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { section_id, style_id, process_id, color_id, rate, effective_date } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const pieceRate = await prisma.pieceRate.update({
       where: { id: parseInt(id) },
@@ -59,7 +63,9 @@ exports.update = async (req, res) => {
         process_id: parseInt(process_id),
         color_id: parseInt(color_id),
         rate: parseFloat(rate),
-        effective_date: new Date(effective_date)
+        effective_date: new Date(effective_date),
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.json(pieceRate);

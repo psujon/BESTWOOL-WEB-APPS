@@ -48,10 +48,10 @@ export default function Style({ token }) {
     e.preventDefault();
     if (!styleNo || !buyerId) return;
 
-    const payload = { 
-      style_no: styleNo, 
-      buyer_id: parseInt(buyerId), 
-      status 
+    const payload = {
+      style_no: styleNo,
+      buyer_id: parseInt(buyerId),
+      status
     };
 
     if (editingId !== null) {
@@ -145,9 +145,6 @@ export default function Style({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        গার্মেন্টস স্টাইল লিস্ট ম্যানেজমেন্ট।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Style Entry Form */}
@@ -159,10 +156,10 @@ export default function Style({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={buyerId} 
-                onChange={(e) => setBuyerId(e.target.value)} 
+                value={buyerId}
+                onChange={(e) => setBuyerId(e.target.value)}
                 required
               >
                 <option value="">Select Buyer</option>
@@ -173,24 +170,24 @@ export default function Style({ token }) {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল কোড / নম্বর *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={styleNo} 
-                onChange={(e) => setStyleNo(e.target.value)} 
-                placeholder="ST-9902" 
-                required 
+                value={styleNo}
+                onChange={(e) => setStyleNo(e.target.value)}
+                placeholder="ST-9902"
+                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্ট্যাটাস</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={status} 
+                value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
                 <option value="Active">Active</option>
@@ -203,9 +200,9 @@ export default function Style({ token }) {
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'স্টাইল যুক্ত করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-sm"
                 >
                   <XCircle size={16} />
@@ -253,15 +250,15 @@ export default function Style({ token }) {
                         <td className="py-3.5 px-4">{getStatusBadge(item.status)}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(item)} 
+                            <button
+                              onClick={() => handleEdit(item)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(item.id)} 
+                            <button
+                              onClick={() => handleDelete(item.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >

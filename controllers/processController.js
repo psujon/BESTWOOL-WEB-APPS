@@ -10,7 +10,6 @@ exports.getAll = async (req, res) => {
       },
       orderBy: { id: 'desc' }
     });
-    // Flatten relation names for frontend compatibility
     const result = list.map(p => ({
       ...p,
       section_name: p.section?.name || null,
@@ -28,6 +27,7 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   const { section_id, buyer_id, style_id, process_name, type, status } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const process = await prisma.process.create({
       data: {
@@ -36,7 +36,9 @@ exports.create = async (req, res) => {
         style_id: parseInt(style_id),
         process_name,
         type,
-        status: status || 'Active'
+        status: status || 'Active',
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.status(201).json(process);
@@ -48,6 +50,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { section_id, buyer_id, style_id, process_name, type, status } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const process = await prisma.process.update({
       where: { id: parseInt(id) },
@@ -57,7 +60,9 @@ exports.update = async (req, res) => {
         style_id: parseInt(style_id),
         process_name,
         type,
-        status
+        status,
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.json(process);

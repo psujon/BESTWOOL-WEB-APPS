@@ -183,9 +183,6 @@ export default function Process({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        গার্মেন্টস প্রোডাকশন প্রসেস সেটিং পেজ। পোশাক তৈরির প্রতিটি ধাপে কী কী প্রসেস সম্পাদন করা হবে তা এখানে কনফিগার করা হয়।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Process Form */}
@@ -197,10 +194,10 @@ export default function Process({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={sectionId} 
-                onChange={(e) => setSectionId(e.target.value)} 
+                value={sectionId}
+                onChange={(e) => setSectionId(e.target.value)}
                 required
               >
                 <option value="">Select Section</option>
@@ -212,10 +209,10 @@ export default function Process({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={buyerId} 
-                onChange={(e) => setBuyerId(e.target.value)} 
+                value={buyerId}
+                onChange={(e) => setBuyerId(e.target.value)}
                 required
               >
                 <option value="">Select Buyer</option>
@@ -227,10 +224,10 @@ export default function Process({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={styleId} 
-                onChange={(e) => setStyleId(e.target.value)} 
+                value={styleId}
+                onChange={(e) => setStyleId(e.target.value)}
                 required
               >
                 <option value="">Select Style</option>
@@ -242,22 +239,22 @@ export default function Process({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস এর নাম *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={processName} 
-                onChange={(e) => setProcessName(e.target.value)} 
-                placeholder="Knitting / Packing" 
-                required 
+                value={processName}
+                onChange={(e) => setProcessName(e.target.value)}
+                placeholder="Knitting / Packing"
+                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">টাইপ (Type) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={type} 
-                onChange={(e) => setType(e.target.value)} 
+                value={type}
+                onChange={(e) => setType(e.target.value)}
                 required
               >
                 <option value="complete">Complete</option>
@@ -267,9 +264,9 @@ export default function Process({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">অবস্থা (Status)</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={status} 
+                value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
                 <option value="Active">Active</option>
@@ -282,9 +279,9 @@ export default function Process({ token }) {
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'প্রসেস যুক্ত করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-sm"
                 >
                   <XCircle size={16} />
@@ -342,15 +339,15 @@ export default function Process({ token }) {
                         <td className="py-3.5 px-4">{getStatusBadge(proc.status)}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(proc)} 
+                            <button
+                              onClick={() => handleEdit(proc)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(proc.id)} 
+                            <button
+                              onClick={() => handleDelete(proc.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >

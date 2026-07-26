@@ -33,6 +33,7 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   const { section_id, buyer_id, style_id, process_id, color_id, order_quantity } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const order = await prisma.buyerOrder.create({
       data: {
@@ -41,7 +42,9 @@ exports.create = async (req, res) => {
         style_id: parseInt(style_id),
         process_id: parseInt(process_id),
         color_id: parseInt(color_id),
-        order_quantity: parseInt(order_quantity)
+        order_quantity: parseInt(order_quantity),
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.status(201).json(order);
@@ -53,6 +56,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { section_id, buyer_id, style_id, process_id, color_id, order_quantity } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const order = await prisma.buyerOrder.update({
       where: { id: parseInt(id) },
@@ -62,7 +66,9 @@ exports.update = async (req, res) => {
         style_id: parseInt(style_id),
         process_id: parseInt(process_id),
         color_id: parseInt(color_id),
-        order_quantity: parseInt(order_quantity)
+        order_quantity: parseInt(order_quantity),
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.json(order);

@@ -27,13 +27,16 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   const { section_id, style_id, process_id, color_name } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const color = await prisma.color.create({
       data: {
         section_id: parseInt(section_id),
         style_id: parseInt(style_id),
         process_id: parseInt(process_id),
-        color_name
+        color_name,
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.status(201).json(color);
@@ -45,6 +48,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { section_id, style_id, process_id, color_name } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const color = await prisma.color.update({
       where: { id: parseInt(id) },
@@ -52,7 +56,9 @@ exports.update = async (req, res) => {
         section_id: parseInt(section_id),
         style_id: parseInt(style_id),
         process_id: parseInt(process_id),
-        color_name
+        color_name,
+        processed_by: userId,
+        processed_date: new Date()
       }
     });
     res.json(color);

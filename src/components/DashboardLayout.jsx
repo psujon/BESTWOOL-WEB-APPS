@@ -24,6 +24,8 @@ export default function DashboardLayout({
     if (segment === 'production-show') return 'production_show';
     if (segment === 'user-permission') return 'user_permission';
     if (segment === 'database-backup') return 'database_backup';
+    if (segment === 'company-profile') return 'company_profile';
+    if (segment === 'employee-info') return 'employee_info';
     return segment;
   };
 
@@ -38,11 +40,13 @@ export default function DashboardLayout({
     piece_rate: { title: 'পিস রেট সেটআপ', subtitle: 'ধাপভিত্তিক মজুরি ও রেট সেটিংস' },
     buyer_order_info: { title: 'বায়ার অর্ডার ইনফো', subtitle: 'পারচেজ অর্ডার (PO) কন্ট্রোল' },
     yarn_challan: { title: 'সুতা চালান ট্র্যাকিং', subtitle: 'সুতা সংগ্রহ ও ইনভেন্টরি লগ' },
+    employee_info: { title: 'ইমপ্লয়ী ইনফরমেশন', subtitle: 'এক্টিভ কর্মকর্তা/কর্মচারীদের তালিকা ও ফাইল প্রোফাইল' },
     production_entry: { title: 'ডেইলি প্রোডাকশন এন্ট্রি', subtitle: 'ফ্লোর থেকে দৈনিক কাজের বিবরণী সংরক্ষণ' },
     production_show: { title: 'প্রোডাকশন রিপোর্ট শো', subtitle: 'উৎপাদিত পণ্যের সার্বিক হিসেব' },
     user: { title: 'ইউজার সেটিংস', subtitle: 'সিস্টেম অ্যাক্সেস অ্যাকাউন্টসমূহ' },
     user_permission: { title: 'ইউজার পারমিশন সেটিংস', subtitle: 'মেন্যু অ্যাক্সেস কন্ট্রোল লিস্ট (ACL)' },
     section: { title: 'সেকশন সেটিংস', subtitle: 'কারখানার বিভাগসমূহ নিয়ন্ত্রণ প্যানেল' },
+    company_profile: { title: 'কোম্পানী প্রোফাইল সেটিংস', subtitle: 'প্রতিষ্ঠানের লোগো, তথ্য ও প্রাতিষ্ঠানিক পরিচিতি' },
     database_backup: { title: 'ডাটাবেজ ব্যাকআপ প্যানেল', subtitle: 'MySQL ডাম্প ফাইল ও রিসোর্স রিকভারি' }
   };
 
@@ -55,6 +59,7 @@ export default function DashboardLayout({
         permissions={permissions} 
         user={user} 
         sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
       />
 
       {/* Backdrop overlay for mobile sidebar */}
@@ -66,15 +71,18 @@ export default function DashboardLayout({
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col lg:pl-[280px] min-h-screen bg-[#0b0f19] transition-all">
+      <main className={`flex-1 flex flex-col min-h-screen bg-[#0b0f19] transition-all duration-300 ${
+        sidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-0'
+      }`}>
         {/* Top Header */}
         <header className="h-[70px] bg-[#131b2e]/75 backdrop-blur-md border-b border-white/6 px-6 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <button 
-              className="lg:hidden text-slate-300 hover:text-slate-100 cursor-pointer"
+              className="p-2 border border-white/6 rounded-lg text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              title={sidebarOpen ? "সাইডবার লুকান (Hide Sidebar)" : "সাইডবার দেখান (Show Sidebar)"}
             >
-              <Menu size={24} />
+              <Menu size={20} />
             </button>
             <div className="flex flex-col">
               <h1 className="text-lg font-bold text-slate-100 font-sans">{currentHeader.title}</h1>

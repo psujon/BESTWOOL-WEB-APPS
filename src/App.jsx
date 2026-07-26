@@ -20,12 +20,16 @@ import UserPermission from './pages/Settings/UserPermission';
 import DatabaseBackup from './pages/DatabaseBackup';
 import Section from './pages/Settings/Section';
 import Color from './pages/OrderManagement/Color';
+import CompanyProfile from './pages/Settings/CompanyProfile';
+import EmployeeInfo from './pages/OrderManagement/EmployeeInfo';
+
+
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('bw_token') || '');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('bw_user') || 'null'));
   const [permissions, setPermissions] = useState(JSON.parse(localStorage.getItem('bw_permissions') || 'null'));
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
 
   const navigate = useNavigate();
@@ -164,11 +168,13 @@ export default function App() {
         <Route path="piece-rate" element={<PieceRate token={token} />} />
         <Route path="buyer-order-info" element={<BuyerOrderInfo token={token} />} />
         <Route path="yarn-challan" element={<YarnChallan token={token} />} />
+        <Route path="employee-info" element={<EmployeeInfo token={token} />} />
         <Route path="production-entry" element={<ProductionEntry token={token} />} />
         <Route path="production-show" element={<ProductionShow token={token} />} />
         <Route path="user" element={<UserPage token={token} />} />
         <Route path="user-permission" element={<UserPermission token={token} />} />
         <Route path="section" element={<Section token={token} />} />
+        <Route path="company-profile" element={<CompanyProfile token={token} />} />
         <Route path="database-backup" element={<DatabaseBackup token={token} />} />
       </Route>
 

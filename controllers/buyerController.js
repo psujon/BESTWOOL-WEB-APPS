@@ -13,9 +13,17 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   const { name, country, email, phone } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const buyer = await prisma.buyer.create({
-      data: { name, country, email, phone }
+      data: { 
+        name, 
+        country, 
+        email, 
+        phone,
+        processed_by: userId,
+        processed_date: new Date()
+      }
     });
     res.status(201).json(buyer);
   } catch (err) {
@@ -26,10 +34,18 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { name, country, email, phone } = req.body;
+  const userId = req.user ? req.user.id : null;
   try {
     const buyer = await prisma.buyer.update({
       where: { id: parseInt(id) },
-      data: { name, country, email, phone }
+      data: { 
+        name, 
+        country, 
+        email, 
+        phone,
+        processed_by: userId,
+        processed_date: new Date()
+      }
     });
     res.json(buyer);
   } catch (err) {
