@@ -99,7 +99,7 @@ export default function Login({ onLoginSuccess }) {
             • এডমিন: <code>admin</code> / <code>admin123</code>
           </div>
           <div>
-            • ম্যানেজার: <code>manager</code> / <code>manager123</code>
+            • অপারেটর: <code>operator</code> / <code>operator123</code>
           </div>
         </div>
       </div>

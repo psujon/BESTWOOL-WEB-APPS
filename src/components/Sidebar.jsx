@@ -18,7 +18,7 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
   // Automatically keep accordions open if one of their sub-links is active
   useEffect(() => {
     const path = location.pathname;
-    if (['/dashboard/buyer', '/dashboard/style', '/dashboard/process', '/dashboard/color', '/dashboard/piece-rate', '/dashboard/buyer-order-info', '/dashboard/yarn-challan', '/dashboard/employee-info'].some(p => path.startsWith(p))) {
+    if (['/dashboard/buyer', '/dashboard/style', '/dashboard/process', '/dashboard/color', '/dashboard/piece-rate', '/dashboard/buyer-order-info', '/dashboard/yarn-challan'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, orderManagement: true }));
     }
     if (['/dashboard/production-entry', '/dashboard/production-show'].some(p => path.startsWith(p))) {

@@ -121,9 +121,6 @@ export default function CompanyProfile({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        কোম্পানী প্রোফাইল ও পরিচিতি সেটিংস। আপনার প্রতিষ্ঠানের লোগো (সরাসরি ডাটাবেজে সংরক্ষিত), যোগাযোগের ঠিকানা ও প্রাতিষ্ঠানিক তথ্য কনফিগার করুন।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Left Side: Preview Card & Logo */}
@@ -187,11 +184,11 @@ export default function CompanyProfile({ token }) {
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-300">কোম্পানী লোগো (সরাসরি ইমেজ ফাইল আপলোড) *</label>
               <div className="border-2 border-dashed border-white/10 hover:border-sky-500/50 bg-[#0b0f19]/40 rounded-xl p-5 text-center transition-colors relative">
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept="image/png, image/jpeg, image/webp, image/svg+xml"
                   onChange={handleLogoUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <div className="flex flex-col items-center justify-center space-y-2">
                   <div className="w-12 h-12 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center">
@@ -212,8 +209,8 @@ export default function CompanyProfile({ token }) {
                     <img src={logoUrl} alt="Selected Logo" className="w-10 h-10 object-contain rounded bg-[#0b0f19] p-1 border border-white/10" />
                     <span className="text-emerald-400 font-medium">✅ লোগো ফাইল ডাটাবেজে সেভ হতে প্রস্তুত</span>
                   </div>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleRemoveLogo}
                     className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors cursor-pointer"
                     title="লোগো মুছে ফেলুন"
@@ -227,24 +224,24 @@ export default function CompanyProfile({ token }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">কোম্পানীর নাম *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={companyName} 
-                  onChange={(e) => setCompanyName(e.target.value)} 
-                  placeholder="উদা. BEST WOOL SWEATERS LTD." 
-                  required 
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="উদা. BEST WOOL SWEATERS LTD."
+                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">স্লোগান / ট্যাগলাইন</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={tagline} 
-                  onChange={(e) => setTagline(e.target.value)} 
-                  placeholder="Quality Knitwear Manufacturer" 
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  placeholder="Quality Knitwear Manufacturer"
                 />
               </div>
             </div>
@@ -252,23 +249,23 @@ export default function CompanyProfile({ token }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">অফিসিয়াল ইমেইল</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  placeholder="info@bestwool.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="info@bestwool.com"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">ফোন নম্বর</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={phone} 
-                  onChange={(e) => setPhone(e.target.value)} 
-                  placeholder="+880 2 9881234" 
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+880 2 9881234"
                 />
               </div>
             </div>
@@ -276,40 +273,40 @@ export default function CompanyProfile({ token }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">ওয়েবসাইট URL</label>
-                <input 
-                  type="url" 
+                <input
+                  type="url"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={website} 
-                  onChange={(e) => setWebsite(e.target.value)} 
-                  placeholder="https://bestwool.com" 
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://bestwool.com"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Tax ID / BIN নম্বর</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={taxId} 
-                  onChange={(e) => setTaxId(e.target.value)} 
-                  placeholder="BIN-100293848123" 
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  placeholder="BIN-100293848123"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রতিষ্ঠানের পূর্ণাঙ্গ ঠিকানা</label>
-              <textarea 
-                rows="3" 
+              <textarea
+                rows="3"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg p-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors leading-relaxed"
-                value={address} 
-                onChange={(e) => setAddress(e.target.value)} 
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
                 placeholder="Plot #12, Road #04, Sector #07, Uttara, Dhaka-1230, Bangladesh"
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={saving}
               className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 text-sm"
             >

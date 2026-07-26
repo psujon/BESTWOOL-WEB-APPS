@@ -7,5 +7,7 @@ router.use(authenticateToken);
 
 router.get('/', productionController.getAll);
 router.post('/', productionController.create);
+router.put('/:id', productionController.updateQuantity);
+router.delete('/:id', productionController.delete);
 
 module.exports = router;

@@ -7,5 +7,8 @@ router.use(authenticateToken);
 
 router.get('/', userController.getAll);
 router.post('/', userController.create);
+router.put('/:id/role', userController.updateRole);
+router.get('/permissions', userController.getAllPermissions);
+router.put('/:id/permission', userController.toggleUserPermission);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit3, Plus, Trash2, Save, XCircle } from 'lucide-react';
+import { Edit3, Plus, Trash2, Save, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const getTodayDateString = () => {
@@ -15,6 +15,7 @@ export default function ProductionEntry({ token }) {
   const [styles, setStyles] = useState([]);
   const [processes, setProcesses] = useState([]);
   const [colors, setColors] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   // Form Fields
   const [sectionId, setSectionId] = useState('');
@@ -25,7 +26,7 @@ export default function ProductionEntry({ token }) {
 
   // Dynamic Card Items List
   const [cards, setCards] = useState([
-    { id: 1, card_no: '', quantity: '' }
+    { id: Date.now(), card_no: '', emp_name: '', quantity: '' }
   ]);
 
   const [saving, setSaving] = useState(false);
@@ -35,6 +36,7 @@ export default function ProductionEntry({ token }) {
     fetchStyles();
     fetchProcesses();
     fetchColors();
+    fetchEmployees();
   }, []);
 
   const fetchSections = () => {
@@ -73,11 +75,49 @@ export default function ProductionEntry({ token }) {
       .catch(err => console.error('Error fetching colors:', err));
   };
 
+  const fetchEmployees = () => {
+    fetch('http://localhost:5000/api/employees', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setEmployees(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Error fetching employees:', err));
+  };
+
+  // Filter employees belonging to the selected section
+  const getSectionEmployees = (secId = sectionId) => {
+    if (!secId) return employees;
+    return employees.filter(e => e.section_id === parseInt(secId));
+  };
+
+  // Section Selection Handler
+  const handleSectionChange = (newSecId) => {
+    setSectionId(newSecId);
+    setProcessId('');
+    setColorId('');
+
+    if (newSecId) {
+      const secEmps = employees.filter(e => e.section_id === parseInt(newSecId));
+      setCards(prev => prev.map(c => {
+        if (c.card_no) {
+          const trimmedVal = c.card_no.trim().toLowerCase();
+          const matched = secEmps.find(e => e.card_no.trim().toLowerCase() === trimmedVal || e.card_no.trim().toLowerCase().includes(trimmedVal));
+          return {
+            ...c,
+            card_no: matched ? matched.card_no : c.card_no,
+            emp_name: matched ? matched.name : ''
+          };
+        }
+        return c;
+      }));
+    }
+  };
+
   // Card Rows Management
   const handleAddCardRow = () => {
     setCards(prev => [
       ...prev,
-      { id: Date.now(), card_no: '', quantity: '' }
+      { id: Date.now(), card_no: '', emp_name: '', quantity: '' }
     ]);
   };
 
@@ -89,7 +129,67 @@ export default function ProductionEntry({ token }) {
     setCards(prev => prev.filter(c => c.id !== id));
   };
 
-  const handleCardChange = (id, field, value) => {
+  // Live Section-wise Card Search as User Types
+  const handleCardNoChange = (id, cardNoVal) => {
+    const availableEmployees = getSectionEmployees();
+    setCards(prev => prev.map(c => {
+      if (c.id === id) {
+        const trimmedVal = cardNoVal.trim().toLowerCase();
+        let matchedEmp = null;
+        if (trimmedVal) {
+          matchedEmp = availableEmployees.find(e => e.card_no.trim().toLowerCase() === trimmedVal) ||
+                       availableEmployees.find(e => e.card_no.trim().toLowerCase().includes(trimmedVal));
+        }
+        return {
+          ...c,
+          card_no: cardNoVal,
+          emp_name: matchedEmp ? matchedEmp.name : ''
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Section-wise Card Search on Blur & Auto-fill Full Card No into Input
+  const handleCardNoBlur = (id, cardNoVal) => {
+    const trimmedVal = cardNoVal.trim().toLowerCase();
+    if (!trimmedVal) return;
+
+    if (!sectionId) {
+      toast.error('দয়া করে প্রথমে সেকশন নির্বাচন করুন!');
+      return;
+    }
+
+    const selectedSec = sections.find(s => s.id === parseInt(sectionId));
+    const secName = selectedSec ? selectedSec.name : '';
+    const availableEmployees = getSectionEmployees();
+
+    // Search exact match first, then partial match in this section
+    let matchedEmp = availableEmployees.find(e => e.card_no.trim().toLowerCase() === trimmedVal);
+
+    if (!matchedEmp) {
+      matchedEmp = availableEmployees.find(e => e.card_no.trim().toLowerCase().includes(trimmedVal));
+    }
+
+    if (matchedEmp) {
+      setCards(prev => prev.map(c => {
+        if (c.id === id) {
+          return {
+            ...c,
+            card_no: matchedEmp.card_no,
+            emp_name: matchedEmp.name
+          };
+        }
+        return c;
+      }));
+      toast.success(`"${secName}" সেকশনে ইমপ্লয়ী নিশ্চিত করা হয়েছে: ${matchedEmp.card_no} (${matchedEmp.name})`);
+    } else {
+      setCards(prev => prev.map(c => c.id === id ? { ...c, emp_name: '' } : c));
+      toast.error(`"${secName}" সেকশনে "${cardNoVal}" কার্ড নম্বরের কোনো একটিভ ইমপ্লয়ী পাওয়া যায়নি!`);
+    }
+  };
+
+  const handleCardFieldChange = (id, field, value) => {
     setCards(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
   };
 
@@ -99,6 +199,14 @@ export default function ProductionEntry({ token }) {
 
     if (!sectionId || !styleId || !processId || !colorId || !productionDate) {
       toast.error('দয়া করে সেকশন, স্টাইল, প্রসেস, কালার ও প্রোডাকশন ডেট নির্বাচন করুন!');
+      return;
+    }
+
+    const invalidCard = cards.find(c => c.card_no.trim() !== '' && !c.emp_name);
+    if (invalidCard) {
+      const selectedSec = sections.find(s => s.id === parseInt(sectionId));
+      const secName = selectedSec ? selectedSec.name : '';
+      toast.error(`"${secName}" সেকশনে কার্ড নম্বর (${invalidCard.card_no}) এর একটিভ ইমপ্লয়ী পাওয়া যায়নি!`);
       return;
     }
 
@@ -137,7 +245,7 @@ export default function ProductionEntry({ token }) {
       })
       .then((data) => {
         toast.success(data.message || 'সবগুলো কার্ডের প্রোডাকশন এন্ট্রি সফলভাবে ডাটাবেজে সংরক্ষণ করা হয়েছে!');
-        setCards([{ id: Date.now(), card_no: '', quantity: '' }]);
+        setCards([{ id: Date.now(), card_no: '', emp_name: '', quantity: '' }]);
         setSaving(false);
       })
       .catch(err => {
@@ -158,10 +266,6 @@ export default function ProductionEntry({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        ডেইলি প্রোডাকশন এন্ট্রি ফর্ম। একই সেকশন, স্টাইল, প্রসেস ও কালারের অধীনে একসাথে একাধিক কার্ড নম্বর ও কোয়ান্টিটি এন্ট্রি করুন।
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Top Header Card Selection Panel */}
         <div className="bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
@@ -176,11 +280,7 @@ export default function ProductionEntry({ token }) {
               <select 
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
                 value={sectionId} 
-                onChange={(e) => {
-                  setSectionId(e.target.value);
-                  setProcessId(''); 
-                  setColorId('');
-                }} 
+                onChange={(e) => handleSectionChange(e.target.value)} 
                 required
               >
                 <option value="">Select Section</option>
@@ -256,12 +356,12 @@ export default function ProductionEntry({ token }) {
           </div>
         </div>
 
-        {/* Dynamic Card Numbers & Quantity Panel */}
+        {/* Dynamic Card Numbers, Employee Name & Quantity Panel */}
         <div className="bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-white/6">
             <div>
-              <h3 className="text-lg font-semibold text-slate-100">কার্ড নম্বর ও কোয়ান্টিটি লিস্ট</h3>
-              <p className="text-xs text-slate-400 mt-0.5">একসাথে একাধিক কার্ডের উৎপাদন পরিমাণ ইনপুট দিন</p>
+              <h3 className="text-lg font-semibold text-slate-100">কার্ড নম্বর, ইমপ্লয়ীর নাম ও কোয়ান্টিটি লিস্ট</h3>
+              <p className="text-xs text-slate-400 mt-0.5">নির্বাচিত সেকশন অনুযায়ী কার্ড নম্বর ফিল্টার করে ইমপ্লয়ীর নাম ফেচ করা হবে</p>
             </div>
             <button 
               type="button" 
@@ -275,39 +375,82 @@ export default function ProductionEntry({ token }) {
 
           <div className="space-y-3">
             {cards.map((item, index) => (
-              <div key={item.id} className="flex items-center gap-4 bg-[#0b0f19]/40 border border-white/6 p-3 rounded-xl">
+              <div key={item.id} className="flex flex-col md:flex-row items-center gap-3 bg-[#0b0f19]/40 border border-white/6 p-3 rounded-xl">
                 <span className="text-xs font-bold text-slate-400 w-8 shrink-0">#{index + 1}</span>
 
-                <div className="flex-1">
+                {/* Card No Input with Section-wise Search */}
+                <div className="w-full md:flex-1">
                   <input 
                     type="text" 
-                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors font-medium"
                     value={item.card_no}
-                    onChange={(e) => handleCardChange(item.id, 'card_no', e.target.value)}
-                    placeholder="কার্ড নম্বর (উদা. CARD-1001)"
+                    onChange={(e) => handleCardNoChange(item.id, e.target.value)}
+                    onBlur={(e) => handleCardNoBlur(item.id, e.target.value)}
+                    placeholder={sectionId ? "কার্ড নম্বর (উদা. 1001)" : "প্রথমে সেকশন সিলেক্ট করুন"}
                     required
                   />
                 </div>
 
-                <div className="flex-1">
+                {/* Employee Name (Auto Populated) */}
+                <div className="w-full md:flex-1 relative">
+                  <input 
+                    type="text" 
+                    readOnly
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${
+                      item.emp_name 
+                        ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold' 
+                        : 'bg-[#0b0f19]/30 border-red-500/20 text-red-400 placeholder:text-slate-600'
+                    }`}
+                    value={item.emp_name}
+                    placeholder="সেকশন ওয়াইজ ইমপ্লয়ীর নাম"
+                  />
+                  {item.emp_name && (
+                    <UserCheck size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-400" />
+                  )}
+                </div>
+
+                {/* Quantity Input */}
+                <div className="w-full md:flex-1">
                   <input 
                     type="number" 
-                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                    disabled={!item.emp_name}
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${
+                      item.emp_name 
+                        ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500' 
+                        : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+                    }`}
                     value={item.quantity}
-                    onChange={(e) => handleCardChange(item.id, 'quantity', e.target.value)}
-                    placeholder="কোয়ান্টিটি (pcs)"
+                    onChange={(e) => handleCardFieldChange(item.id, 'quantity', e.target.value)}
+                    placeholder={item.emp_name ? "কোয়ান্টিটি (pcs)" : "কার্ড নং না থাকায় নিষ্ক্রিয়"}
                     required
                   />
                 </div>
 
-                <button 
-                  type="button" 
-                  onClick={() => handleRemoveCardRow(item.id)}
-                  className="w-9 h-9 border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-colors shrink-0 cursor-pointer"
-                  title="এই সারির কার্ড মুছে ফেলুন"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button 
+                    type="button" 
+                    onClick={handleAddCardRow}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleAddCardRow();
+                      }
+                    }}
+                    className="w-9 h-9 border border-sky-500/20 text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 rounded-lg flex items-center justify-center transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                    title="নতুন কার্ড সারি যোগ করুন (মাউস ক্লিক, Enter অথবা Space চাপুন)"
+                  >
+                    <Plus size={16} />
+                  </button>
+
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveCardRow(item.id)}
+                    className="w-9 h-9 border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+                    title="এই সারির কার্ড মুছে ফেলুন"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

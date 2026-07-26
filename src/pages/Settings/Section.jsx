@@ -8,7 +8,7 @@ export default function Section({ token }) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [status, setStatus] = useState('Active');
-  
+
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
@@ -118,9 +118,6 @@ export default function Section({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        সেকশন (Section) সেটিংস পেজ। কারখানার বিভিন্ন বিভাগ বা সেকশন (যেমন: নিটিং, ডায়িং, ফিনিশিং) কনফিগার করার জন্য এটি ব্যবহৃত হয়।
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Form Card */}
@@ -132,33 +129,33 @@ export default function Section({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন এর নাম *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="Knitting / Dyeing" 
-                required 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Knitting / Dyeing"
+                required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন কোড *</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={code} 
-                onChange={(e) => setCode(e.target.value)} 
-                placeholder="KN-01" 
-                required 
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="KN-01"
+                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্ট্যাটাস</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={status} 
+                value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
                 <option value="Active">Active</option>
@@ -171,9 +168,9 @@ export default function Section({ token }) {
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'সেকশন যুক্ত করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-sm"
                 >
                   <XCircle size={16} />
@@ -221,15 +218,15 @@ export default function Section({ token }) {
                         <td className="py-3.5 px-4">{getStatusBadge(sec.status)}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(sec)} 
+                            <button
+                              onClick={() => handleEdit(sec)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(sec.id)} 
+                            <button
+                              onClick={() => handleDelete(sec.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >
