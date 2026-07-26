@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
-import { User, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { User, Lock, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) return;
 
     setLoading(true);
-    setError('');
 
     try {
       const response = await fetch('http://localhost:5000/api/auth/login', {
@@ -24,12 +23,13 @@ export default function Login({ onLoginSuccess }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || 'Invalid username or password');
       }
 
+      toast.success(`স্বাগতম, ${data.user.name}!`);
       onLoginSuccess(data.token, data.user, data.permissions);
     } catch (err) {
-      setError(err.message || 'নেটওয়ার্ক কানেকশন সমস্যা। সার্ভার চালু আছে কি?');
+      toast.error(err.message || 'নেটওয়ার্ক কানেকশন সমস্যা। সার্ভার চালু আছে কি?');
     } finally {
       setLoading(false);
     }
@@ -49,13 +49,6 @@ export default function Login({ onLoginSuccess }) {
           <h2 className="text-2xl font-bold text-slate-100 font-display">বেস্ট উল ড্যাশবোর্ড</h2>
           <p className="text-slate-400 text-sm mt-1">লগইন করে সিস্টেমে প্রবেশ করুন</p>
         </div>
-
-        {error && (
-          <div className="mb-5 p-3.5 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-center gap-2">
-            <AlertCircle size={18} />
-            <span>{error}</span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-5">

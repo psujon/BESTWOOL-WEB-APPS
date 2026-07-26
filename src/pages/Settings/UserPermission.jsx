@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, ShieldCheck } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function UserPermission() {
   const [users, setUsers] = useState([
@@ -32,8 +33,6 @@ export default function UserPermission() {
     '2-database_backup': false
   });
 
-  const [toastMessage, setToastMessage] = useState('');
-
   const handleToggle = (userId, menuKey) => {
     const key = `${userId}-${menuKey}`;
     const newValue = !permissions[key];
@@ -44,11 +43,12 @@ export default function UserPermission() {
     });
 
     const user = users.find(u => u.id === userId);
-    setToastMessage(`✅ ${user.name} এর জন্য "${menuKey}" অনুমতি ${newValue ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে!`);
-    
-    setTimeout(() => {
-      setToastMessage('');
-    }, 3000);
+    const statusText = newValue ? 'সক্রিয়' : 'নিষ্ক্রিয়';
+    if (newValue) {
+      toast.success(`${user.name} এর জন্য "${menuKey}" অনুমতি সক্রিয় করা হয়েছে!`);
+    } else {
+      toast.error(`${user.name} এর জন্য "${menuKey}" অনুমতি নিষ্ক্রিয় করা হয়েছে!`);
+    }
   };
 
   const menuList = [
@@ -77,12 +77,6 @@ export default function UserPermission() {
           মেন্যু অ্যাক্সেস পারমিশন ম্যাট্রিক্স
         </h3>
       </div>
-
-      {toastMessage && (
-        <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm rounded-lg animate-[fadeIn_0.3s_ease-in-out]">
-          {toastMessage}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {users.map((user) => (

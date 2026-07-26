@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function User({ token }) {
   const [users, setUsers] = useState([]);
@@ -11,9 +12,6 @@ export default function User({ token }) {
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('user');
-
-  const [message, setMessage] = useState('');
-  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -33,10 +31,10 @@ export default function User({ token }) {
 
   const handleAddUser = (e) => {
     e.preventDefault();
-    if (!name || !username || !password) return;
-
-    setMessage('');
-    setIsError(false);
+    if (!name || !username || !password) {
+      toast.error('নাম, ইউজারনেম ও পাসওয়ার্ড পূরণ করা বাধ্যতামূলক!');
+      return;
+    }
 
     fetch('http://localhost:5000/api/users', {
       method: 'POST',
@@ -46,12 +44,13 @@ export default function User({ token }) {
       },
       body: JSON.stringify({ name, username, password, email, role })
     })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to create user');
-        return res.json();
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to create user');
+        return data;
       })
-      .then(data => {
-        setMessage('✅ ব্যবহারকারী সফলভাবে তৈরি করা হয়েছে!');
+      .then(() => {
+        toast.success('ব্যবহারকারী সফলভাবে তৈরি করা হয়েছে!');
         setName('');
         setUsername('');
         setPassword('');
@@ -59,8 +58,7 @@ export default function User({ token }) {
         setRefresh(!refresh);
       })
       .catch(err => {
-        setMessage(`❌ ${err.message}`);
-        setIsError(true);
+        toast.error(err.message);
       });
   };
 
@@ -76,18 +74,6 @@ export default function User({ token }) {
             <UserPlus size={18} className="text-sky-400" />
             নতুন ইউজার তৈরি করুন
           </h3>
-
-          {message && (
-            <div 
-              className={`mb-5 p-3.5 border rounded-lg text-sm ${
-                isError 
-                  ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-              }`}
-            >
-              {message}
-            </div>
-          )}
 
           <form onSubmit={handleAddUser} className="space-y-4">
             <div>

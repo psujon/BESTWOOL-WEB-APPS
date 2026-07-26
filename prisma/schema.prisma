@@ -152,6 +152,7 @@ model BuyerOrder {
   process_id     Int
   color_id       Int
   order_quantity Int
+  yarn_received  Int     @default(0)
   section        Section @relation(fields: [section_id], references: [id], onDelete: Cascade)
   buyer          Buyer   @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
   style          Style   @relation(fields: [style_id], references: [id], onDelete: Cascade)

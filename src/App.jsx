@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Login from './components/Login';
 import DashboardLayout from './components/DashboardLayout';
+import { Toaster } from 'react-hot-toast';
+
 
 // Subpages imports
 import Overview from './pages/Overview';
@@ -94,7 +96,36 @@ export default function App() {
   }
 
   return (
-    <Routes>
+    <>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#131b2e',
+            color: '#f8fafc',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+            fontSize: '0.875rem',
+            borderRadius: '0.75rem',
+            padding: '12px 16px'
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#131b2e'
+            }
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#131b2e'
+            }
+          }
+        }} 
+      />
+      <Routes>
+
       {/* Root Route Redirect */}
       <Route 
         path="/" 
@@ -144,5 +175,6 @@ export default function App() {
       {/* Catch-all route to redirect back to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

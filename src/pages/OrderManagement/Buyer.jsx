@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Edit, Trash2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Buyer({ token }) {
   const [buyers, setBuyers] = useState([]);
@@ -35,7 +36,10 @@ export default function Buyer({ token }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name || !country) return;
+    if (!name || !country) {
+      toast.error('বায়ার নাম ও দেশের নাম পূরণ করা বাধ্যতামূলক!');
+      return;
+    }
 
     const payload = { name, country, email, phone };
 
@@ -49,15 +53,18 @@ export default function Buyer({ token }) {
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update buyer');
-          return res.json();
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to update buyer');
+          return data;
         })
         .then(() => {
+          toast.success('বায়ার তথ্য সফলভাবে হালনাগাদ করা হয়েছে!');
           setEditingId(null);
+          resetForm();
           fetchBuyers();
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     } else {
       // Create DB
       fetch('http://localhost:5000/api/buyers', {
@@ -68,16 +75,21 @@ export default function Buyer({ token }) {
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save buyer');
-          return res.json();
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to save buyer');
+          return data;
         })
         .then(() => {
+          toast.success('নতুন বায়ার সফলভাবে যুক্ত করা হয়েছে!');
+          resetForm();
           fetchBuyers();
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
+  };
 
+  const resetForm = () => {
     setName('');
     setCountry('');
     setEmail('');
@@ -94,10 +106,7 @@ export default function Buyer({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setName('');
-    setCountry('');
-    setEmail('');
-    setPhone('');
+    resetForm();
   };
 
   const handleDelete = (id) => {
@@ -106,14 +115,19 @@ export default function Buyer({ token }) {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete buyer');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete buyer');
+          return data;
+        })
+        .then(() => {
+          toast.success('বায়ার রেকর্ড সফলভাবে ডিলিট করা হয়েছে!');
           fetchBuyers();
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
@@ -175,7 +189,7 @@ export default function Buyer({ token }) {
             </div>
             
             <div className="flex gap-3 pt-2">
-              <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm">
+              <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold">
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'সংরক্ষণ করুন'}
               </button>
               {editingId !== null && (

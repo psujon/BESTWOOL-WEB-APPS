@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Edit, Trash2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function BuyerOrderInfo({ token }) {
   const [orders, setOrders] = useState([]);
@@ -92,7 +93,10 @@ export default function BuyerOrderInfo({ token }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!sectionId || !buyerId || !styleId || !processId || !colorId || !orderQuantity) return;
+    if (!sectionId || !buyerId || !styleId || !processId || !colorId || !orderQuantity) {
+      toast.error('দয়া করে সকল প্রয়োজনীয় তথ্য ফিলআপ করুন!');
+      return;
+    }
 
     const payload = {
       section_id: parseInt(sectionId),
@@ -112,12 +116,18 @@ export default function BuyerOrderInfo({ token }) {
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update buyer order');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to update buyer order');
+          return data;
+        })
+        .then(() => {
+          toast.success('বায়ার অর্ডার সফলভাবে হালনাগাদ করা হয়েছে!');
           setEditingId(null);
+          resetForm();
           fetchOrders();
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     } else {
       fetch('http://localhost:5000/api/buyer-orders', {
         method: 'POST',
@@ -127,13 +137,21 @@ export default function BuyerOrderInfo({ token }) {
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save buyer order');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to save buyer order');
+          return data;
+        })
+        .then(() => {
+          toast.success('নতুন বায়ার অর্ডার সফলভাবে তৈরি করা হয়েছে!');
+          resetForm();
           fetchOrders();
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
+  };
 
+  const resetForm = () => {
     setSectionId('');
     setBuyerId('');
     setStyleId('');
@@ -154,12 +172,7 @@ export default function BuyerOrderInfo({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setSectionId('');
-    setBuyerId('');
-    setStyleId('');
-    setProcessId('');
-    setColorId('');
-    setOrderQuantity('');
+    resetForm();
   };
 
   const handleDelete = (id) => {
@@ -168,14 +181,19 @@ export default function BuyerOrderInfo({ token }) {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete order');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete order');
+          return data;
+        })
+        .then(() => {
+          toast.success('বায়ার অর্ডার সফলভাবে ডিলিট করা হয়েছে!');
           fetchOrders();
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
@@ -192,7 +210,7 @@ export default function BuyerOrderInfo({ token }) {
   return (
     <div className="space-y-6">
       <div className="p-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm rounded-lg leading-relaxed">
-        বায়ার অর্ডার ইনফরমেশন (Purchase Order Details)। পোশাকের বিভিন্ন সেকশন, বায়ার, স্টাইল, প্রসেস এবং কালার অনুযায়ী অর্ডার কোয়ান্টিটি ট্র্যাকিং রেকর্ড করা হয়।
+        বায়ার অর্ডার ইনফরমেশন (Purchase Order Details)। পোশাকের বিভিন্ন সেকশন, বায়ার, স্টাইল, প্রসেস এবং কালার অনুযায়ী অর্ডার কোয়ান্টিটি ও রিসিভড ইয়ার্ন কোয়ান্টিটি রেকর্ড ও ট্র্যাকিং করা হয়।
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -303,7 +321,7 @@ export default function BuyerOrderInfo({ token }) {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm">
+              <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold">
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'অর্ডার যুক্ত করুন'}
               </button>
               {editingId !== null && (
@@ -341,13 +359,14 @@ export default function BuyerOrderInfo({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold">প্রসেস</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">কালার</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">অর্ডার কোয়ান্টিটি</th>
+                    <th className="py-3 px-4 text-slate-300 font-semibold text-emerald-400">ইয়ার্ন রিসিভড</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
                   {orders.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-8 text-slate-500">
+                      <td colSpan="9" className="text-center py-8 text-slate-500">
                         কোন বায়ার অর্ডার পাওয়া যায়নি
                       </td>
                     </tr>
@@ -365,6 +384,9 @@ export default function BuyerOrderInfo({ token }) {
                         <td className="py-3.5 px-4 text-slate-300">{item.process_name || '—'}</td>
                         <td className="py-3.5 px-4 text-sky-400 font-semibold">{item.color_name || '—'}</td>
                         <td className="py-3.5 px-4 text-slate-100 font-bold">{Number(item.order_quantity).toLocaleString()} pcs</td>
+                        <td className="py-3.5 px-4 font-bold text-emerald-400">
+                          {Number(item.yarn_received || 0).toLocaleString()} pcs
+                        </td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
                             <button 

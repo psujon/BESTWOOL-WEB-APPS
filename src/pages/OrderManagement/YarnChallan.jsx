@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, Edit, Trash2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -26,7 +27,7 @@ export default function YarnChallan({ token }) {
   const [gatePassNo, setGatePassNo] = useState('');
   const [challanDate, setChallanDate] = useState(getTodayDateString());
   const [quantity, setQuantity] = useState('');
-  
+
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
@@ -91,7 +92,11 @@ export default function YarnChallan({ token }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!sectionId || !styleId || !processId || !colorId || !challanNo || !gatePassNo || !challanDate || !quantity) return;
+
+    if (!sectionId || !styleId || !processId || !colorId || !challanNo || !gatePassNo || !challanDate || !quantity) {
+      toast.error('দয়া করে সকল প্রয়োজনীয় তথ্য পূরণ করুন!');
+      return;
+    }
 
     const payload = {
       section_id: parseInt(sectionId),
@@ -113,12 +118,22 @@ export default function YarnChallan({ token }) {
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update yarn challan');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || 'Failed to update yarn challan');
+          }
+          return data;
+        })
+        .then(() => {
+          toast.success('চালান সফলভাবে হালনাগাদ করা হয়েছে!');
           setEditingId(null);
+          resetForm();
           fetchChallans();
         })
-        .catch(err => alert(err.message));
+        .catch(err => {
+          toast.error(err.message, { duration: 5000 });
+        });
     } else {
       fetch('http://localhost:5000/api/yarn-challans', {
         method: 'POST',
@@ -128,13 +143,25 @@ export default function YarnChallan({ token }) {
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save yarn challan');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || 'Failed to save yarn challan');
+          }
+          return data;
+        })
+        .then(() => {
+          toast.success('ইয়ার্ন চালান সফলভাবে সংরক্ষণ করা হয়েছে!');
+          resetForm();
           fetchChallans();
         })
-        .catch(err => alert(err.message));
+        .catch(err => {
+          toast.error(err.message, { duration: 5000 });
+        });
     }
+  };
 
+  const resetForm = () => {
     setSectionId('');
     setStyleId('');
     setProcessId('');
@@ -154,7 +181,7 @@ export default function YarnChallan({ token }) {
     setChallanNo(item.challan_no || '');
     setGatePassNo(item.gate_pass_no || '');
     setQuantity(item.quantity.toString());
-    
+
     if (item.challan_date) {
       const dbDate = new Date(item.challan_date);
       const year = dbDate.getFullYear();
@@ -168,14 +195,7 @@ export default function YarnChallan({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setSectionId('');
-    setStyleId('');
-    setProcessId('');
-    setColorId('');
-    setChallanNo('');
-    setGatePassNo('');
-    setChallanDate(getTodayDateString());
-    setQuantity('');
+    resetForm();
   };
 
   const handleDelete = (id) => {
@@ -184,22 +204,27 @@ export default function YarnChallan({ token }) {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete challan');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete challan');
+          return data;
+        })
+        .then(() => {
+          toast.success('চালান সফলভাবে ডিলিট করা হয়েছে!');
           fetchChallans();
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
   const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
 
-  const filteredColors = colors.filter(c => 
-    c.section_id === parseInt(sectionId) && 
-    c.style_id === parseInt(styleId) && 
+  const filteredColors = colors.filter(c =>
+    c.section_id === parseInt(sectionId) &&
+    c.style_id === parseInt(styleId) &&
     c.process_id === parseInt(processId)
   );
 
@@ -219,14 +244,14 @@ export default function YarnChallan({ token }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={sectionId} 
+                value={sectionId}
                 onChange={(e) => {
                   setSectionId(e.target.value);
-                  setProcessId(''); 
+                  setProcessId('');
                   setColorId('');
-                }} 
+                }}
                 required
               >
                 <option value="">Select Section</option>
@@ -238,13 +263,13 @@ export default function YarnChallan({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={styleId} 
+                value={styleId}
                 onChange={(e) => {
                   setStyleId(e.target.value);
                   setColorId('');
-                }} 
+                }}
                 required
               >
                 <option value="">Select Style</option>
@@ -256,13 +281,13 @@ export default function YarnChallan({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={processId} 
+                value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
                   setColorId('');
-                }} 
+                }}
                 required
                 disabled={!sectionId}
               >
@@ -275,10 +300,10 @@ export default function YarnChallan({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={colorId} 
-                onChange={(e) => setColorId(e.target.value)} 
+                value={colorId}
+                onChange={(e) => setColorId(e.target.value)}
                 required
                 disabled={!processId || !styleId}
               >
@@ -292,60 +317,60 @@ export default function YarnChallan({ token }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">চালান নং *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={challanNo} 
-                  onChange={(e) => setChallanNo(e.target.value)} 
-                  placeholder="CH-88021" 
-                  required 
+                  value={challanNo}
+                  onChange={(e) => setChallanNo(e.target.value)}
+                  placeholder="CH-88021"
+                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">গেট পাস নং *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                  value={gatePassNo} 
-                  onChange={(e) => setGatePassNo(e.target.value)} 
-                  placeholder="GP-9903" 
-                  required 
+                  value={gatePassNo}
+                  onChange={(e) => setGatePassNo(e.target.value)}
+                  placeholder="GP-9903"
+                  required
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">চালান ডেট *</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={challanDate} 
-                onChange={(e) => setChallanDate(e.target.value)} 
-                required 
+                value={challanDate}
+                onChange={(e) => setChallanDate(e.target.value)}
+                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">কোয়ানটিটি *</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={quantity} 
-                onChange={(e) => setQuantity(e.target.value)} 
-                placeholder="5000" 
-                required 
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                placeholder="5000"
+                required
               />
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm">
+              <button type="submit" className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold">
                 {editingId !== null ? 'হালনাগাদ (Update)' : 'চালান সংরক্ষণ করুন'}
               </button>
               {editingId !== null && (
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
                   className="bg-white/5 border border-white/6 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-sm"
                 >
                   <XCircle size={16} />
@@ -411,15 +436,15 @@ export default function YarnChallan({ token }) {
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="flex gap-2 justify-center">
-                            <button 
-                              onClick={() => handleEdit(item)} 
+                            <button
+                              onClick={() => handleEdit(item)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
                               <Edit size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(item.id)} 
+                            <button
+                              onClick={() => handleDelete(item.id)}
                               className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
                               title="ডিলিট করুন"
                             >
