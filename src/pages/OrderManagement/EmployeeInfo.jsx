@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Edit, Trash2, XCircle, Plus, Calendar } from 'lucide-react';
+import { UserCheck, Edit, Trash2, XCircle, Plus, Calendar, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const getTodayDateString = () => {
@@ -23,6 +23,80 @@ export default function EmployeeInfo({ token }) {
   const [sectionId, setSectionId] = useState('');
 
   const [editingId, setEditingId] = useState(null);
+
+  // MSSQL External Search Modal States
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchCardNo, setSearchCardNo] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState(null);
+
+  // Table Search Filter State
+  const [tableSearchQuery, setTableSearchQuery] = useState('');
+
+  const filteredEmployees = employees.filter(emp => {
+    if (!tableSearchQuery.trim()) return true;
+    const q = tableSearchQuery.toLowerCase().trim();
+    return (
+      (emp.card_no && emp.card_no.toLowerCase().includes(q)) ||
+      (emp.name && emp.name.toLowerCase().includes(q)) ||
+      (emp.designation && emp.designation.toLowerCase().includes(q)) ||
+      (emp.section_name && emp.section_name.toLowerCase().includes(q))
+    );
+  });
+
+  const handleOpenSearchModal = () => {
+    setSearchCardNo(cardNo || '');
+    setSearchResult(null);
+    setShowSearchModal(true);
+  };
+
+  const handleSearchExternal = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchCardNo.trim()) {
+      toast.error('দয়া করে কার্ড নম্বর লিখুন!');
+      return;
+    }
+    setSearching(true);
+    setSearchResult(null);
+    try {
+      const res = await fetch(`http://localhost:5000/api/employees/external-search?card_no=${encodeURIComponent(searchCardNo.trim())}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'ডাটা পাওয়া যায়নি');
+      setSearchResult(data.data);
+      toast.success('এমপ্লয়ী ডাটা পাওয়া গিয়েছে!');
+    } catch (err) {
+      toast.error(err.message);
+      setSearchResult(null);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAutoFillForm = () => {
+    if (!searchResult) return;
+    setCardNo(searchResult.emp_id || '');
+    setName(searchResult.emp_name || '');
+    setDesignation(searchResult.designation_name || '');
+    if (searchResult.join_date) {
+      setJoinDate(searchResult.join_date);
+    }
+
+    if (searchResult.section_name && sections.length > 0) {
+      const matchedSec = sections.find(s =>
+        s.name.toLowerCase().trim() === searchResult.section_name.toLowerCase().trim() ||
+        searchResult.section_name.toLowerCase().includes(s.name.toLowerCase()) ||
+        s.name.toLowerCase().includes(searchResult.section_name.toLowerCase())
+      );
+      if (matchedSec) {
+        setSectionId(matchedSec.id);
+      }
+    }
+
+    setShowSearchModal(false);
+    toast.success('এমপ্লয়ী তথ্য ফর্মে ফিলাম করা হয়েছে!');
+  };
 
   useEffect(() => {
     fetchEmployees();
@@ -170,13 +244,23 @@ export default function EmployeeInfo({ token }) {
   return (
     <div className="space-y-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Form Panel */}
         <div className="lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
-          <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
-            <UserCheck size={18} className="text-sky-400" />
-            {editingId !== null ? 'ইমপ্লয়ী তথ্য সংশোধন' : 'নতুন ইমপ্লয়ী যুক্ত করুন'}
-          </h3>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+              <UserCheck size={18} className="text-sky-400" />
+              {editingId !== null ? 'ইমপ্লয়ী তথ্য সংশোধন' : 'নতুন ইমপ্লয়ী যুক্ত করুন'}
+            </h3>
+            <button
+              type="button"
+              onClick={handleOpenSearchModal}
+              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold py-1.5 px-3 rounded-xl shadow-md transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Search size={14} />
+              <span>খুজুন</span>
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -261,17 +345,41 @@ export default function EmployeeInfo({ token }) {
 
         {/* Active Employee Table List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">একটিভ ইমপ্লয়ী তালিকা</h3>
-            <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">
-              একটিভ স্টাফ: {employees.length} জন
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#18223c]/75 backdrop-blur-md p-3.5 px-4 border border-white/6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">একটিভ ইমপ্লয়ী তালিকা</h3>
+              <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">
+                {tableSearchQuery ? `ফলাফল: ${filteredEmployees.length} জন` : `একটিভ স্টাফ: ${employees.length} জন`}
+              </span>
+            </div>
+
+            {/* Real-time Employee Table Search Option */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                placeholder="কার্ড নং, নাম, পদবী বা সেকশন..."
+                value={tableSearchQuery}
+                onChange={(e) => setTableSearchQuery(e.target.value)}
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {tableSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setTableSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                  title="সার্চ রিসিট করুন"
+                >
+                  <XCircle size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div className="text-slate-400">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
           ) : (
-            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto">
+            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
@@ -285,14 +393,23 @@ export default function EmployeeInfo({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {employees.length === 0 ? (
+                  {filteredEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-slate-500">
-                        কোন একটিভ ইমপ্লয়ী রেকর্ড পাওয়া যায়নি
+                      <td colSpan="7" className="text-center py-10 text-slate-400 space-y-2">
+                        <div>কোন ইমপ্লয়ী রেকর্ড খুঁজে পাওয়া যায়নি</div>
+                        {tableSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setTableSearchQuery('')}
+                            className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
+                          >
+                            সার্চ রিসেট করুন
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    employees.map((emp, index) => (
+                    filteredEmployees.map((emp, index) => (
                       <tr key={emp.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-100">
@@ -333,6 +450,94 @@ export default function EmployeeInfo({ token }) {
           )}
         </div>
       </div>
+
+      {/* External MSSQL Search Modal */}
+      {showSearchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-[#18223c] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center font-bold text-sm">
+                  🔍
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100">এমএসএসকিউএল ডাটাবেজ সার্চ</h3>
+                  <p className="text-[11px] text-slate-400">কার্ড নং দিয়ে অন্য ডাটাবেজে সার্চ করুন</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSearchModal(false)}
+                className="text-slate-400 hover:text-slate-200 transition-colors p-1 cursor-pointer"
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSearchExternal} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">কার্ড নম্বর (Card No / emp_id)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 bg-[#0b0f19]/70 border border-white/10 rounded-xl py-2 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                    placeholder="যেমন: A00036"
+                    value={searchCardNo}
+                    onChange={(e) => setSearchCardNo(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={searching}
+                    className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold py-2 px-4 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {searching ? 'খুজা হচ্ছে...' : 'খুজুন'}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Search Result Card */}
+            {searchResult && (
+              <div className="bg-[#0b0f19]/60 border border-sky-500/30 rounded-xl p-4 space-y-3 animate-fadeIn">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-xs font-bold text-sky-400">এমপ্লয়ী তথ্য পাওয়া গিয়েছে</span>
+                  <span className="text-[11px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-md font-mono font-bold">
+                    {searchResult.emp_id}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">নাম (Name):</span>
+                    <span className="font-semibold text-slate-200">{searchResult.emp_name || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">পদবী (Designation):</span>
+                    <span className="font-semibold text-slate-200">{searchResult.designation_name || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">সেকশন (Section):</span>
+                    <span className="font-semibold text-slate-200">{searchResult.section_name || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">জয়েন ডেট (Join Date):</span>
+                    <span className="font-semibold text-slate-200">{searchResult.join_date || '—'}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAutoFillForm}
+                  className="w-full mt-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>ফর্মে ফিলাম করুন (Auto Fill Form)</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

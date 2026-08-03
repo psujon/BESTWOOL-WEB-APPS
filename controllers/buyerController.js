@@ -15,9 +15,23 @@ exports.create = async (req, res) => {
   const { name, country, email, phone } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const trimmedName = (name || '').trim();
+
+    // Check duplicate buyer name
+    const existingList = await prisma.buyer.findMany();
+    const isDuplicate = existingList.some(
+      b => b.name && b.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ারের নামটি ইতোমধ্যে বিদ্যমান রয়েছে।' 
+      });
+    }
+
     const buyer = await prisma.buyer.create({
       data: { 
-        name, 
+        name: trimmedName, 
         country, 
         email, 
         phone,
@@ -36,10 +50,27 @@ exports.update = async (req, res) => {
   const { name, country, email, phone } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const buyerId = parseInt(id);
+    const trimmedName = (name || '').trim();
+
+    // Check duplicate buyer name excluding current record
+    const existingList = await prisma.buyer.findMany({
+      where: { NOT: { id: buyerId } }
+    });
+    const isDuplicate = existingList.some(
+      b => b.name && b.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ারের নামটি ইতোমধ্যে বিদ্যমান রয়েছে।' 
+      });
+    }
+
     const buyer = await prisma.buyer.update({
-      where: { id: parseInt(id) },
+      where: { id: buyerId },
       data: { 
-        name, 
+        name: trimmedName, 
         country, 
         email, 
         phone,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Tag, Edit, Trash2, XCircle } from 'lucide-react';
+import { Tag, Edit, Trash2, XCircle, Search, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Style({ token }) {
   const [styles, setStyles] = useState([]);
@@ -11,6 +12,20 @@ export default function Style({ token }) {
   const [status, setStatus] = useState('Active');
 
   const [editingId, setEditingId] = useState(null);
+  const [formError, setFormError] = useState('');
+
+  // Table Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredStyles = styles.filter(item => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
+      (item.buyer_name && item.buyer_name.toLowerCase().includes(q)) ||
+      (item.status && item.status.toLowerCase().includes(q))
+    );
+  });
 
   useEffect(() => {
     fetchStyles();
@@ -44,54 +59,85 @@ export default function Style({ token }) {
       });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!styleNo || !buyerId) return;
+    setFormError('');
+
+    if (!styleNo || !buyerId) {
+      const errMsg = 'অনুগ্রহ করে বায়ার এবং স্টাইল নম্বর উভয় ঘর পূরণ করুন!';
+      setFormError(errMsg);
+      toast.error(errMsg);
+      return;
+    }
+
+    const sNo = styleNo.trim();
+    const bId = parseInt(buyerId);
+
+    // Front-end duplicate check
+    const isDup = styles.some(item =>
+      item.buyer_id === bId &&
+      item.style_no &&
+      item.style_no.trim().toLowerCase() === sNo.toLowerCase() &&
+      (editingId === null || item.id !== editingId)
+    );
+
+    if (isDup) {
+      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ারের জন্য এই স্টাইল নম্বরটি ইতোমধ্যে বিদ্যমান রয়েছে।';
+      setFormError(dupMsg);
+      toast.error(dupMsg);
+      return;
+    }
 
     const payload = {
-      style_no: styleNo,
-      buyer_id: parseInt(buyerId),
+      style_no: sNo,
+      buyer_id: bId,
       status
     };
 
-    if (editingId !== null) {
-      fetch(`http://localhost:5000/api/styles/${editingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update style');
-          setEditingId(null);
-          fetchStyles();
-        })
-        .catch(err => alert(err.message));
-    } else {
-      fetch('http://localhost:5000/api/styles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save style');
-          fetchStyles();
-        })
-        .catch(err => alert(err.message));
-    }
+    try {
+      if (editingId !== null) {
+        const res = await fetch(`http://localhost:5000/api/styles/${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update style');
 
-    setStyleNo('');
-    setBuyerId('');
-    setStatus('Active');
+        toast.success('স্টাইল তথ্য সফলভাবে আপডেট করা হয়েছে!');
+        setEditingId(null);
+      } else {
+        const res = await fetch('http://localhost:5000/api/styles', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save style');
+
+        toast.success('নতুন স্টাইল সফলভাবে যুক্ত করা হয়েছে!');
+      }
+
+      setStyleNo('');
+      setBuyerId('');
+      setStatus('Active');
+      setFormError('');
+      fetchStyles();
+    } catch (err) {
+      setFormError(err.message);
+      toast.error(err.message);
+    }
   };
 
   const handleEdit = (styleItem) => {
     setEditingId(styleItem.id);
+    setFormError('');
     setStyleNo(styleItem.style_no);
     setBuyerId(styleItem.buyer_id || '');
     setStatus(styleItem.status || 'Active');
@@ -99,6 +145,7 @@ export default function Style({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+    setFormError('');
     setStyleNo('');
     setBuyerId('');
     setStatus('Active');
@@ -110,14 +157,19 @@ export default function Style({ token }) {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete style');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete style');
+          return data;
+        })
+        .then(() => {
+          toast.success('স্টাইল সফলভাবে ডিলিট করা হয়েছে!');
           fetchStyles();
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
@@ -153,6 +205,13 @@ export default function Style({ token }) {
             <Tag size={18} className="text-sky-400" />
             {editingId !== null ? 'স্টাইল সংশোধন করুন' : 'নতুন স্টাইল যুক্ত করুন'}
           </h3>
+
+          {formError && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-start gap-2.5 text-rose-300 text-xs mb-4">
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+              <span className="leading-relaxed">{formError}</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
@@ -215,15 +274,41 @@ export default function Style({ token }) {
 
         {/* Style Table List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">চলমান স্টাইল তালিকা</h3>
-            <span className="text-xs text-slate-400">মোট স্টাইল: {styles.length} টি</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#18223c]/75 backdrop-blur-md p-3.5 px-4 border border-white/6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">চলমান স্টাইল তালিকা</h3>
+              <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
+                {searchQuery ? `ফলাফল: ${filteredStyles.length} টি` : `মোট স্টাইল: ${styles.length} টি`}
+              </span>
+            </div>
+
+            {/* Real-time Style Search Option */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                placeholder="স্টাইল নম্বর, বায়ার বা অবস্থা..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                  title="সার্চ রিসেট করুন"
+                >
+                  <XCircle size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div className="text-slate-400">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
           ) : (
-            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto">
+            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
@@ -235,14 +320,23 @@ export default function Style({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {styles.length === 0 ? (
+                  {filteredStyles.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="text-center py-8 text-slate-500">
-                        কোন স্টাইল রেকর্ড পাওয়া যায়নি
+                      <td colSpan="5" className="text-center py-10 text-slate-400 space-y-2">
+                        <div>কোন স্টাইল রেকর্ড খুঁজে পাওয়া যায়নি</div>
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
+                          >
+                            সার্চ রিসেট করুন
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    styles.map((item, index) => (
+                    filteredStyles.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4"><strong className="text-sky-400">{item.style_no}</strong></td>

@@ -8,13 +8,13 @@ generator client {
 }
 
 model User {
-  id         Int          @id @default(autoincrement())
-  name       String       @db.VarChar(100)
-  username   String       @unique @db.VarChar(50)
-  password   String       @db.VarChar(255)
-  email      String?      @db.VarChar(100)
-  role       String       @default("user") @db.VarChar(20)
-  created_at DateTime     @default(now()) @db.Timestamp(0)
+  id          Int          @id @default(autoincrement())
+  name        String       @db.VarChar(100)
+  username    String       @unique @db.VarChar(50)
+  password    String       @db.VarChar(255)
+  email       String?      @db.VarChar(100)
+  role        String       @default("user") @db.VarChar(20)
+  created_at  DateTime     @default(now()) @db.Timestamp(0)
   permissions Permission[]
 
   @@map("users")
@@ -172,21 +172,23 @@ model PieceRate {
 }
 
 model BuyerOrder {
-  id             Int       @id @default(autoincrement())
-  section_id     Int
-  buyer_id       Int
-  style_id       Int
-  process_id     Int
-  color_id       Int
-  order_quantity Int
-  yarn_received  Int       @default(0)
-  processed_by   Int?
-  processed_date DateTime? @default(now())
-  section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  buyer          Buyer     @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
-  style          Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
-  process        Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color          Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  id                    Int                    @id @default(autoincrement())
+  section_id            Int
+  buyer_id              Int
+  style_id              Int
+  process_id            Int
+  color_id              Int
+  order_quantity        Int
+  yarn_received         Int                    @default(0)
+  processed_by          Int?
+  processed_date        DateTime?              @default(now())
+  section               Section                @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  buyer                 Buyer                  @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
+  style                 Style                  @relation(fields: [style_id], references: [id], onDelete: Cascade)
+  process               Process                @relation(fields: [process_id], references: [id], onDelete: Cascade)
+  color                 Color                  @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  orderIncreaseRequests OrderIncreaseRequest[]
+  rewindingRequests     RewindingRequest[]
 
   @@map("buyer_orders")
 }
@@ -197,9 +199,9 @@ model YarnChallan {
   style_id       Int
   process_id     Int
   color_id       Int
-  challan_no     String    @db.VarChar(100)
-  gate_pass_no   String    @db.VarChar(100)
-  challan_date   DateTime  @db.Date
+  challan_no     String?   @db.VarChar(100)
+  gate_pass_no   String?   @db.VarChar(100)
+  challan_date   DateTime? @db.Date
   quantity       Int
   processed_by   Int?
   processed_date DateTime? @default(now())
@@ -242,3 +244,31 @@ model Employee {
   @@map("employees")
 }
 
+model OrderIncreaseRequest {
+  id                Int        @id @default(autoincrement())
+  buyer_order_id    Int
+  increase_quantity Int
+  status            String     @default("Pending") @db.VarChar(20)
+  requested_by      Int?
+  requested_at      DateTime   @default(now())
+  approved_by       Int?
+  approved_at       DateTime?
+  buyerOrder        BuyerOrder @relation(fields: [buyer_order_id], references: [id], onDelete: Cascade)
+
+  @@map("order_increase_requests")
+}
+
+model RewindingRequest {
+  id                 Int        @id @default(autoincrement())
+  buyer_order_id     Int
+  rewinding_quantity Int
+  is_confirmed       Boolean    @default(true)
+  status             String     @default("Pending") @db.VarChar(20)
+  requested_by       Int?
+  requested_at       DateTime   @default(now())
+  approved_by        Int?
+  approved_at        DateTime?
+  buyerOrder         BuyerOrder @relation(fields: [buyer_order_id], references: [id], onDelete: Cascade)
+
+  @@map("rewinding_requests")
+}

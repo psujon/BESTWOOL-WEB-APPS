@@ -32,12 +32,33 @@ exports.create = async (req, res) => {
   const { section_id, style_id, process_id, color_id, rate, effective_date } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const sId = parseInt(section_id);
+    const stId = parseInt(style_id);
+    const pId = parseInt(process_id);
+    const cId = parseInt(color_id);
+
+    // Check duplicate piece rate
+    const existing = await prisma.pieceRate.findFirst({
+      where: {
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        color_id: cId
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।' 
+      });
+    }
+
     const pieceRate = await prisma.pieceRate.create({
       data: {
-        section_id: parseInt(section_id),
-        style_id: parseInt(style_id),
-        process_id: parseInt(process_id),
-        color_id: parseInt(color_id),
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        color_id: cId,
         rate: parseFloat(rate),
         effective_date: new Date(effective_date),
         processed_by: userId,
@@ -55,13 +76,36 @@ exports.update = async (req, res) => {
   const { section_id, style_id, process_id, color_id, rate, effective_date } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const prId = parseInt(id);
+    const sId = parseInt(section_id);
+    const stId = parseInt(style_id);
+    const pId = parseInt(process_id);
+    const cId = parseInt(color_id);
+
+    // Check duplicate piece rate excluding current record
+    const existing = await prisma.pieceRate.findFirst({
+      where: {
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        color_id: cId,
+        NOT: { id: prId }
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।' 
+      });
+    }
+
     const pieceRate = await prisma.pieceRate.update({
-      where: { id: parseInt(id) },
+      where: { id: prId },
       data: {
-        section_id: parseInt(section_id),
-        style_id: parseInt(style_id),
-        process_id: parseInt(process_id),
-        color_id: parseInt(color_id),
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        color_id: cId,
         rate: parseFloat(rate),
         effective_date: new Date(effective_date),
         processed_by: userId,

@@ -29,12 +29,36 @@ exports.create = async (req, res) => {
   const { section_id, style_id, process_id, color_name } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const sId = parseInt(section_id);
+    const stId = parseInt(style_id);
+    const pId = parseInt(process_id);
+    const cName = (color_name || '').trim();
+
+    // Check duplicate color
+    const existingList = await prisma.color.findMany({
+      where: {
+        section_id: sId,
+        style_id: stId,
+        process_id: pId
+      }
+    });
+
+    const isDuplicate = existingList.some(
+      c => c.color_name && c.color_name.trim().toLowerCase() === cName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালার নাম দিয়ে ইতোমধ্যে একটি রেকর্ড রয়েছে।' 
+      });
+    }
+
     const color = await prisma.color.create({
       data: {
-        section_id: parseInt(section_id),
-        style_id: parseInt(style_id),
-        process_id: parseInt(process_id),
-        color_name,
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        color_name: cName,
         processed_by: userId,
         processed_date: new Date()
       }
@@ -50,13 +74,39 @@ exports.update = async (req, res) => {
   const { section_id, style_id, process_id, color_name } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const colorId = parseInt(id);
+    const sId = parseInt(section_id);
+    const stId = parseInt(style_id);
+    const pId = parseInt(process_id);
+    const cName = (color_name || '').trim();
+
+    // Check duplicate color excluding current record
+    const existingList = await prisma.color.findMany({
+      where: {
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        NOT: { id: colorId }
+      }
+    });
+
+    const isDuplicate = existingList.some(
+      c => c.color_name && c.color_name.trim().toLowerCase() === cName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালার নাম দিয়ে ইতোমধ্যে একটি রেকর্ড রয়েছে।' 
+      });
+    }
+
     const color = await prisma.color.update({
-      where: { id: parseInt(id) },
+      where: { id: colorId },
       data: {
-        section_id: parseInt(section_id),
-        style_id: parseInt(style_id),
-        process_id: parseInt(process_id),
-        color_name,
+        section_id: sId,
+        style_id: stId,
+        process_id: pId,
+        color_name: cName,
         processed_by: userId,
         processed_date: new Date()
       }

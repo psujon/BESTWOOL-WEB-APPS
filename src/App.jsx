@@ -22,6 +22,9 @@ import Section from './pages/Settings/Section';
 import Color from './pages/OrderManagement/Color';
 import CompanyProfile from './pages/Settings/CompanyProfile';
 import EmployeeInfo from './pages/OrderManagement/EmployeeInfo';
+import PendingBuyerOrder from './pages/PendingApproval/PendingBuyerOrder';
+import PendingRewinding from './pages/PendingApproval/PendingRewinding';
+import ReportPage from './pages/Reports/ReportPage';
 
 
 
@@ -169,6 +172,9 @@ export default function App() {
         <Route path="buyer-order-info" element={<BuyerOrderInfo token={token} />} />
         <Route path="yarn-challan" element={<YarnChallan token={token} />} />
         <Route path="employee-info" element={<EmployeeInfo token={token} />} />
+        <Route path="pending-buyer-order" element={<PendingBuyerOrder token={token} />} />
+        <Route path="pending-rewinding" element={<PendingRewinding token={token} />} />
+        <Route path="reports" element={<ReportPage token={token} />} />
         <Route path="production-entry" element={<ProductionEntry token={token} />} />
         <Route path="production-show" element={<ProductionShow token={token} />} />
         <Route path="user" element={<UserPage token={token} />} />

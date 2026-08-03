@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Palette, Edit, Trash2, XCircle } from 'lucide-react';
+import { Palette, Edit, Trash2, XCircle, Search, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Color({ token }) {
   const [colors, setColors] = useState([]);
@@ -15,6 +16,21 @@ export default function Color({ token }) {
   const [colorName, setColorName] = useState('');
 
   const [editingId, setEditingId] = useState(null);
+  const [formError, setFormError] = useState('');
+
+  // Table Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredColors = colors.filter(item => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (item.section_name && item.section_name.toLowerCase().includes(q)) ||
+      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
+      (item.process_name && item.process_name.toLowerCase().includes(q)) ||
+      (item.color_name && item.color_name.toLowerCase().includes(q))
+    );
+  });
 
   useEffect(() => {
     fetchColors();
@@ -66,56 +82,91 @@ export default function Color({ token }) {
       });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!sectionId || !styleId || !processId || !colorName) return;
+    setFormError('');
 
-    const payload = {
-      section_id: parseInt(sectionId),
-      style_id: parseInt(styleId),
-      process_id: parseInt(processId),
-      color_name: colorName
-    };
-
-    if (editingId !== null) {
-      fetch(`http://localhost:5000/api/colors/${editingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update color');
-          setEditingId(null);
-          fetchColors();
-        })
-        .catch(err => alert(err.message));
-    } else {
-      fetch('http://localhost:5000/api/colors', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save color');
-          fetchColors();
-        })
-        .catch(err => alert(err.message));
+    if (!sectionId || !styleId || !processId || !colorName) {
+      const errMsg = 'অনুগ্রহ করে সেকশন, স্টাইল, প্রসেস এবং কালার নাম পূরণ করুন!';
+      setFormError(errMsg);
+      toast.error(errMsg);
+      return;
     }
 
-    setSectionId('');
-    setStyleId('');
-    setProcessId('');
-    setColorName('');
+    const sId = parseInt(sectionId);
+    const stId = parseInt(styleId);
+    const pId = parseInt(processId);
+    const cName = colorName.trim();
+
+    // Front-end duplicate check
+    const isDup = colors.some(item =>
+      item.section_id === sId &&
+      item.style_id === stId &&
+      item.process_id === pId &&
+      item.color_name &&
+      item.color_name.trim().toLowerCase() === cName.toLowerCase() &&
+      (editingId === null || item.id !== editingId)
+    );
+
+    if (isDup) {
+      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালার নাম দিয়ে ইতোমধ্যে একটি রেকর্ড রয়েছে।';
+      setFormError(dupMsg);
+      toast.error(dupMsg);
+      return;
+    }
+
+    const payload = {
+      section_id: sId,
+      style_id: stId,
+      process_id: pId,
+      color_name: cName
+    };
+
+    try {
+      if (editingId !== null) {
+        const res = await fetch(`http://localhost:5000/api/colors/${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update color');
+
+        toast.success('কালার তথ্য সফলভাবে আপডেট করা হয়েছে!');
+        setEditingId(null);
+      } else {
+        const res = await fetch('http://localhost:5000/api/colors', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save color');
+
+        toast.success('নতুন কালার সফলভাবে যুক্ত করা হয়েছে!');
+      }
+
+      setSectionId('');
+      setStyleId('');
+      setProcessId('');
+      setColorName('');
+      setFormError('');
+      fetchColors();
+    } catch (err) {
+      setFormError(err.message);
+      toast.error(err.message);
+    }
   };
 
   const handleEdit = (item) => {
     setEditingId(item.id);
+    setFormError('');
     setSectionId(item.section_id || '');
     setStyleId(item.style_id || '');
     setProcessId(item.process_id || '');
@@ -124,6 +175,7 @@ export default function Color({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+    setFormError('');
     setSectionId('');
     setStyleId('');
     setProcessId('');
@@ -136,19 +188,26 @@ export default function Color({ token }) {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete color');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete color');
+          return data;
+        })
+        .then(() => {
+          toast.success('কালার রেকর্ড সফলভাবে ডিলিট করা হয়েছে!');
           fetchColors();
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
-  // Dynamic process list filtered by chosen section
-  const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
+  // Dynamic process list filtered by both chosen section and style for Form Dropdown
+  const formFilteredProcesses = (sectionId && styleId)
+    ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
+    : [];
 
   return (
     <div className="space-y-6">
@@ -160,6 +219,13 @@ export default function Color({ token }) {
             <Palette size={18} className="text-sky-400" />
             {editingId !== null ? 'কালার সংশোধন করুন' : 'নতুন কালার সেট করুন'}
           </h3>
+
+          {formError && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-start gap-2.5 text-rose-300 text-xs mb-4">
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+              <span className="leading-relaxed">{formError}</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
@@ -184,7 +250,10 @@ export default function Color({ token }) {
               <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
                 value={styleId}
-                onChange={(e) => setStyleId(e.target.value)}
+                onChange={(e) => {
+                  setStyleId(e.target.value);
+                  setProcessId('');
+                }}
                 required
               >
                 <option value="">Select Style</option>
@@ -197,14 +266,22 @@ export default function Color({ token }) {
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস *</label>
               <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 value={processId}
                 onChange={(e) => setProcessId(e.target.value)}
                 required
-                disabled={!sectionId}
+                disabled={!sectionId || !styleId}
               >
-                <option value="">{sectionId ? "Select Process" : "First select a section"}</option>
-                {filteredProcesses.map((p) => (
+                <option value="">
+                  {!sectionId
+                    ? "First select a section"
+                    : !styleId
+                    ? "First select a style"
+                    : formFilteredProcesses.length === 0
+                    ? "No processes found for this section & style"
+                    : "Select Process"}
+                </option>
+                {formFilteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
                 ))}
               </select>
@@ -242,15 +319,41 @@ export default function Color({ token }) {
 
         {/* Color Table List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">কালার তালিকা</h3>
-            <span className="text-xs text-slate-400">মোট রেকর্ড: {colors.length} টি</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#18223c]/75 backdrop-blur-md p-3.5 px-4 border border-white/6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">কালার তালিকা</h3>
+              <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
+                {searchQuery ? `ফলাফল: ${filteredColors.length} টি` : `মোট রেকর্ড: ${colors.length} টি`}
+              </span>
+            </div>
+
+            {/* Real-time Color Search Option */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                placeholder="কালার, সেকশন, স্টাইল বা প্রসেস..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                  title="সার্চ রিসেট করুন"
+                >
+                  <XCircle size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div className="text-slate-400">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
           ) : (
-            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto">
+            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
@@ -263,14 +366,23 @@ export default function Color({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {colors.length === 0 ? (
+                  {filteredColors.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-8 text-slate-500">
-                        কোন কালার রেকর্ড পাওয়া যায়নি
+                      <td colSpan="6" className="text-center py-10 text-slate-400 space-y-2">
+                        <div>কোন কালার রেকর্ড খুঁজে পাওয়া যায়নি</div>
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
+                          >
+                            সার্চ রিসেট করুন
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    colors.map((item, index) => (
+                    filteredColors.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>

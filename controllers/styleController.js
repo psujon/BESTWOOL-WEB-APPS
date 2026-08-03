@@ -21,10 +21,28 @@ exports.create = async (req, res) => {
   const { style_no, buyer_id, status } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const bId = parseInt(buyer_id);
+    const sNo = (style_no || '').trim();
+
+    // Check duplicate style for buyer
+    const existingList = await prisma.style.findMany({
+      where: { buyer_id: bId }
+    });
+
+    const isDuplicate = existingList.some(
+      s => s.style_no && s.style_no.trim().toLowerCase() === sNo.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ারের জন্য এই স্টাইল নম্বরটি ইতোমধ্যে বিদ্যমান রয়েছে।' 
+      });
+    }
+
     const style = await prisma.style.create({
       data: { 
-        style_no, 
-        buyer_id: parseInt(buyer_id), 
+        style_no: sNo, 
+        buyer_id: bId, 
         status,
         processed_by: userId,
         processed_date: new Date()
@@ -41,11 +59,33 @@ exports.update = async (req, res) => {
   const { style_no, buyer_id, status } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const styleId = parseInt(id);
+    const bId = parseInt(buyer_id);
+    const sNo = (style_no || '').trim();
+
+    // Check duplicate style excluding current record
+    const existingList = await prisma.style.findMany({
+      where: {
+        buyer_id: bId,
+        NOT: { id: styleId }
+      }
+    });
+
+    const isDuplicate = existingList.some(
+      s => s.style_no && s.style_no.trim().toLowerCase() === sNo.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ারের জন্য এই স্টাইল নম্বরটি ইতোমধ্যে বিদ্যমান রয়েছে।' 
+      });
+    }
+
     const style = await prisma.style.update({
-      where: { id: parseInt(id) },
+      where: { id: styleId },
       data: { 
-        style_no, 
-        buyer_id: parseInt(buyer_id), 
+        style_no: sNo, 
+        buyer_id: bId, 
         status,
         processed_by: userId,
         processed_date: new Date()

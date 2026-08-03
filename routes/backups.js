@@ -7,5 +7,7 @@ router.use(authenticateToken);
 
 router.get('/', backupController.getAll);
 router.post('/', backupController.create);
+router.get('/download/:filename', backupController.download);
+router.post('/restore/:filename', backupController.restore);
 
 module.exports = router;

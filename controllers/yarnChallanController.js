@@ -62,6 +62,10 @@ exports.create = async (req, res) => {
       });
     }
 
+    const challanDateParsed = challan_date ? new Date(challan_date) : null;
+    const challanNoParsed = challan_no && challan_no.trim() !== '' ? challan_no.trim() : null;
+    const gatePassNoParsed = gate_pass_no && gate_pass_no.trim() !== '' ? gate_pass_no.trim() : null;
+
     const challan = await prisma.$transaction(async (tx) => {
       const created = await tx.yarnChallan.create({
         data: {
@@ -69,9 +73,9 @@ exports.create = async (req, res) => {
           style_id: stId,
           process_id: prId,
           color_id: colId,
-          challan_no,
-          gate_pass_no,
-          challan_date: new Date(challan_date),
+          challan_no: challanNoParsed,
+          gate_pass_no: gatePassNoParsed,
+          challan_date: challanDateParsed,
           quantity: qty,
           processed_by: userId,
           processed_date: new Date()
@@ -150,6 +154,10 @@ exports.update = async (req, res) => {
       });
     }
 
+    const challanDateParsed = challan_date ? new Date(challan_date) : null;
+    const challanNoParsed = challan_no && challan_no.trim() !== '' ? challan_no.trim() : null;
+    const gatePassNoParsed = gate_pass_no && gate_pass_no.trim() !== '' ? gate_pass_no.trim() : null;
+
     const updatedChallan = await prisma.$transaction(async (tx) => {
       const oldBuyerOrder = await tx.buyerOrder.findFirst({
         where: {
@@ -179,9 +187,9 @@ exports.update = async (req, res) => {
           style_id: stId,
           process_id: prId,
           color_id: colId,
-          challan_no,
-          gate_pass_no,
-          challan_date: new Date(challan_date),
+          challan_no: challanNoParsed,
+          gate_pass_no: gatePassNoParsed,
+          challan_date: challanDateParsed,
           quantity: newQty,
           processed_by: userId,
           processed_date: new Date()

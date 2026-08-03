@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, Layers, UserCheck, Bookmark, ListChecks, DollarSign, Truck, ShoppingBag,
-  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, ChevronLeft
+  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, ChevronLeft, Clock, RefreshCw, FileText, BarChart2
 } from 'lucide-react';
 
 export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen }) {
@@ -12,6 +12,8 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
   const [openMenus, setOpenMenus] = useState({
     orderManagement: false,
     productionInfo: false,
+    pendingApproval: false,
+    reports: false,
     settings: false
   });
 
@@ -23,6 +25,12 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
     }
     if (['/dashboard/production-entry', '/dashboard/production-show'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, productionInfo: true }));
+    }
+    if (['/dashboard/pending-buyer-order', '/dashboard/pending-rewinding'].some(p => path.startsWith(p))) {
+      setOpenMenus(prev => ({ ...prev, pendingApproval: true }));
+    }
+    if (['/dashboard/reports'].some(p => path.startsWith(p))) {
+      setOpenMenus(prev => ({ ...prev, reports: true }));
     }
     if (['/dashboard/user', '/dashboard/user-permission', '/dashboard/section', '/dashboard/company-profile'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, settings: true }));
@@ -209,6 +217,55 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
           >
             <UserCheck size={18} />
             <span>ইমপ্লয়ী ইনফো</span>
+          </NavLink>
+        )}
+
+        {/* --- Pending Approval Accordion --- */}
+        {(hasPermission('pending_buyer_order') || hasPermission('pending_rewinding') || user?.role === 'admin') && (
+          <div className="space-y-1">
+            <div 
+              className={getGroupHeaderClass(isGroupActive([
+                '/dashboard/pending-buyer-order', '/dashboard/pending-rewinding'
+              ]))}
+              onClick={() => toggleMenu('pendingApproval')}
+            >
+              <span className="flex items-center gap-3">
+                <Clock size={18} className="text-amber-400" />
+                <span>পেন্ডিং অ্যাপ্রুভাল</span>
+              </span>
+              <ChevronDown 
+                size={16} 
+                className={`transition-transform duration-300 ${openMenus.pendingApproval ? 'rotate-180' : ''}`} 
+              />
+            </div>
+
+            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${
+              openMenus.pendingApproval ? 'max-h-96 py-1.5' : 'max-h-0'
+            }`}>
+              {(hasPermission('pending_buyer_order') || user?.role === 'admin') && (
+                <NavLink to="/dashboard/pending-buyer-order" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <ShoppingBag size={16} />
+                  <span>বায়ার অর্ডার</span>
+                </NavLink>
+              )}
+              {(hasPermission('pending_rewinding') || user?.role === 'admin') && (
+                <NavLink to="/dashboard/pending-rewinding" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <RefreshCw size={16} />
+                  <span>রি-ওয়াইন্ডিং</span>
+                </NavLink>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* --- Reports Direct Top Level Main Menu --- */}
+        {(hasPermission('reports') || user?.role === 'admin' || user?.role === 'operator') && (
+          <NavLink 
+            to="/dashboard/reports" 
+            className={({ isActive }) => getMenuItemClass(isActive)}
+          >
+            <BarChart2 size={18} />
+            <span>রিপোর্টস (Reports)</span>
           </NavLink>
         )}
 

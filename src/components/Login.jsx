@@ -46,7 +46,7 @@ export default function Login({ onLoginSuccess }) {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20 text-white mb-4">
             <Lock size={28} />
           </div>
-          <h2 className="text-2xl font-bold text-slate-100 font-display">বেস্ট উল ড্যাশবোর্ড</h2>
+          <h2 className="text-2xl font-bold text-slate-100 font-display">বেস্ট উল সোয়েটার্স লিঃ (এক্সটেনশন এন্ড ওয়্যারহাউজ)</h2>
           <p className="text-slate-400 text-sm mt-1">লগইন করে সিস্টেমে প্রবেশ করুন</p>
         </div>
 
@@ -83,8 +83,8 @@ export default function Login({ onLoginSuccess }) {
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-3 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold flex items-center justify-center gap-2"
             disabled={loading}
           >
@@ -93,7 +93,7 @@ export default function Login({ onLoginSuccess }) {
           </button>
         </form>
 
-        <div className="mt-8 p-3.5 bg-white/2 border border-white/6 rounded-lg text-slate-400 text-xs space-y-1">
+        {/* <div className="mt-8 p-3.5 bg-white/2 border border-white/6 rounded-lg text-slate-400 text-xs space-y-1">
           <strong>💡 ডেমো লগইন ক্রেডেনশিয়াল:</strong>
           <div>
             • এডমিন: <code>admin</code> / <code>admin123</code>
@@ -101,7 +101,7 @@ export default function Login({ onLoginSuccess }) {
           <div>
             • অপারেটর: <code>operator</code> / <code>operator123</code>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

@@ -1,6 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { Edit3, Plus, Trash2, Save, UserCheck } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Edit3, Plus, Trash2, Save, UserCheck, ChevronDown, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+function SearchableSelect({
+  options = [],
+  value,
+  onChange,
+  placeholder = 'Select...',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt) => String(opt.id) === String(value));
+
+  const filteredOptions = options.filter((opt) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const labelMatch = opt.label && String(opt.label).toLowerCase().includes(term);
+    const subMatch = opt.sublabel && String(opt.sublabel).toLowerCase().includes(term);
+    return labelMatch || subMatch;
+  });
+
+  return (
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={wrapperRef}>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 pr-8 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
+          placeholder={placeholder}
+          value={isOpen ? searchTerm : (selectedOption ? selectedOption.label : '')}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearchTerm('');
+          }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          required={required && !value}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
+            title="রিসেট করুন"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[9999] left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl py-1 divide-y divide-white/5">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const isSelected = String(opt.id) === String(value);
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {opt.sublabel && (
+                    <span className="text-[10px] text-slate-400 ml-2 shrink-0">{opt.sublabel}</span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-xs text-slate-500 text-center">
+              কোনো ফলাফল পাওয়া যায়নি
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -138,7 +240,7 @@ export default function ProductionEntry({ token }) {
         let matchedEmp = null;
         if (trimmedVal) {
           matchedEmp = availableEmployees.find(e => e.card_no.trim().toLowerCase() === trimmedVal) ||
-                       availableEmployees.find(e => e.card_no.trim().toLowerCase().includes(trimmedVal));
+            availableEmployees.find(e => e.card_no.trim().toLowerCase().includes(trimmedVal));
         }
         return {
           ...c,
@@ -254,13 +356,26 @@ export default function ProductionEntry({ token }) {
       });
   };
 
-  const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
+  // Options formatting for SearchableSelect Style
+  const styleOptions = styles?.map((st) => ({
+    id: st.id,
+    label: st.style_no,
+    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+  })) || [];
 
-  const filteredColors = colors.filter(c => 
-    c.section_id === parseInt(sectionId) && 
-    c.style_id === parseInt(styleId) && 
-    c.process_id === parseInt(processId)
-  );
+  // Section + Style wise process load
+  const filteredProcesses = (sectionId && styleId)
+    ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
+    : [];
+
+  // Process wise color load
+  const filteredColors = (sectionId && styleId && processId)
+    ? colors.filter(c =>
+      c.section_id === parseInt(sectionId) &&
+      c.style_id === parseInt(styleId) &&
+      c.process_id === parseInt(processId)
+    )
+    : [];
 
   const totalQuantity = cards.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
 
@@ -268,7 +383,7 @@ export default function ProductionEntry({ token }) {
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Top Header Card Selection Panel */}
-        <div className="bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="relative z-20 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
           <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2 pb-3 border-b border-white/6">
             <Edit3 size={18} className="text-sky-400" />
             প্রোডাকশন ব্যাচ ও ক্যাটাগরি নির্বাচন
@@ -277,50 +392,55 @@ export default function ProductionEntry({ token }) {
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
-              <select 
+              <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={sectionId} 
-                onChange={(e) => handleSectionChange(e.target.value)} 
+                value={sectionId}
+                onChange={(e) => handleSectionChange(e.target.value)}
                 required
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
-              <select 
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={styleId} 
-                onChange={(e) => {
-                  setStyleId(e.target.value);
+              <SearchableSelect
+                options={styleOptions}
+                value={styleId}
+                onChange={(selectedId) => {
+                  setStyleId(selectedId);
+                  setProcessId('');
                   setColorId('');
-                }} 
+                }}
+                placeholder="Select Style..."
                 required
-              >
-                <option value="">Select Style</option>
-                {styles?.map((st) => (
-                  <option key={st.id} value={st.id}>{st.style_no}</option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রসেস *</label>
-              <select 
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={processId} 
+              <select
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
                   setColorId('');
-                }} 
+                }}
                 required
-                disabled={!sectionId}
+                disabled={!sectionId || !styleId}
               >
-                <option value="">{sectionId ? "Select Process" : "Select section first"}</option>
+                <option value="">
+                  {!sectionId
+                    ? "Select section first"
+                    : !styleId
+                      ? "Select style first"
+                      : filteredProcesses.length === 0
+                        ? "No processes found for this section & style"
+                        : "Select Process"}
+                </option>
                 {filteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
                 ))}
@@ -329,14 +449,22 @@ export default function ProductionEntry({ token }) {
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select 
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={colorId} 
-                onChange={(e) => setColorId(e.target.value)} 
+              <select
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                value={colorId}
+                onChange={(e) => setColorId(e.target.value)}
                 required
-                disabled={!processId || !styleId}
+                disabled={!sectionId || !styleId || !processId}
               >
-                <option value="">{processId && styleId ? "Select Color" : "Select process & style"}</option>
+                <option value="">
+                  {!sectionId || !styleId
+                    ? "Select section & style first"
+                    : !processId
+                      ? "Select process first"
+                      : filteredColors.length === 0
+                        ? "No colors found for this process"
+                        : "Select Color"}
+                </option>
                 {filteredColors.map((c) => (
                   <option key={c.id} value={c.id}>{c.color_name}</option>
                 ))}
@@ -345,12 +473,12 @@ export default function ProductionEntry({ token }) {
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রোডাকশন ডেট *</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={productionDate} 
-                onChange={(e) => setProductionDate(e.target.value)} 
-                required 
+                value={productionDate}
+                onChange={(e) => setProductionDate(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -363,8 +491,8 @@ export default function ProductionEntry({ token }) {
               <h3 className="text-lg font-semibold text-slate-100">কার্ড নম্বর, ইমপ্লয়ীর নাম ও কোয়ান্টিটি লিস্ট</h3>
               <p className="text-xs text-slate-400 mt-0.5">নির্বাচিত সেকশন অনুযায়ী কার্ড নম্বর ফিল্টার করে ইমপ্লয়ীর নাম ফেচ করা হবে</p>
             </div>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={handleAddCardRow}
               className="bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 text-sky-400 text-xs font-semibold py-2 px-3.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
             >
@@ -380,8 +508,8 @@ export default function ProductionEntry({ token }) {
 
                 {/* Card No Input with Section-wise Search */}
                 <div className="w-full md:flex-1">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors font-medium"
                     value={item.card_no}
                     onChange={(e) => handleCardNoChange(item.id, e.target.value)}
@@ -393,14 +521,13 @@ export default function ProductionEntry({ token }) {
 
                 {/* Employee Name (Auto Populated) */}
                 <div className="w-full md:flex-1 relative">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     readOnly
-                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${
-                      item.emp_name 
-                        ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold' 
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
+                        ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold'
                         : 'bg-[#0b0f19]/30 border-red-500/20 text-red-400 placeholder:text-slate-600'
-                    }`}
+                      }`}
                     value={item.emp_name}
                     placeholder="সেকশন ওয়াইজ ইমপ্লয়ীর নাম"
                   />
@@ -411,14 +538,13 @@ export default function ProductionEntry({ token }) {
 
                 {/* Quantity Input */}
                 <div className="w-full md:flex-1">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     disabled={!item.emp_name}
-                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${
-                      item.emp_name 
-                        ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500' 
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
+                        ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
                         : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
-                    }`}
+                      }`}
                     value={item.quantity}
                     onChange={(e) => handleCardFieldChange(item.id, 'quantity', e.target.value)}
                     placeholder={item.emp_name ? "কোয়ান্টিটি (pcs)" : "কার্ড নং না থাকায় নিষ্ক্রিয়"}
@@ -427,8 +553,8 @@ export default function ProductionEntry({ token }) {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleAddCardRow}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -442,8 +568,8 @@ export default function ProductionEntry({ token }) {
                     <Plus size={16} />
                   </button>
 
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => handleRemoveCardRow(item.id)}
                     className="w-9 h-9 border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                     title="এই সারির কার্ড মুছে ফেলুন"
@@ -458,12 +584,12 @@ export default function ProductionEntry({ token }) {
           {/* Footer Actions & Total Calculation */}
           <div className="pt-4 border-t border-white/6 flex items-center justify-between">
             <div className="text-sm text-slate-300">
-              মোট রেকর্ড: <strong className="text-sky-400">{cards.length}</strong> টি কার্ড | 
+              মোট রেকর্ড: <strong className="text-sky-400">{cards.length}</strong> টি কার্ড |
               মোট কোয়ান্টিটি: <strong className="text-emerald-400">{totalQuantity.toLocaleString()}</strong> pcs
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={saving}
               className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer flex items-center gap-2 text-sm"
             >

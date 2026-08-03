@@ -1,6 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, BarChart2, Filter, Search, RotateCcw, Edit, Trash2, Check, XCircle, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { RefreshCw, BarChart2, Filter, Search, RotateCcw, Edit, Trash2, Check, XCircle, Calendar, ChevronDown, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+function SearchableSelect({
+  options = [],
+  value,
+  onChange,
+  placeholder = 'Select...',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt) => String(opt.id) === String(value));
+
+  const filteredOptions = options.filter((opt) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const labelMatch = opt.label && String(opt.label).toLowerCase().includes(term);
+    const subMatch = opt.sublabel && String(opt.sublabel).toLowerCase().includes(term);
+    return labelMatch || subMatch;
+  });
+
+  return (
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={wrapperRef}>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
+          placeholder={placeholder}
+          value={isOpen ? searchTerm : (selectedOption ? selectedOption.label : '')}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearchTerm('');
+          }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          required={required && !value}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
+            title="রিসেট করুন"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[9999] left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl py-1 divide-y divide-white/5">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const isSelected = String(opt.id) === String(value);
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
+                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                  }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {opt.sublabel && (
+                    <span className="text-[10px] text-slate-400 ml-2 shrink-0">{opt.sublabel}</span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-xs text-slate-500 text-center">
+              কোনো ফলাফল পাওয়া যায়নি
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Helper to format date in local DD/MM/YYYY format without UTC timezone shift
 const formatDateLocal = (dateVal) => {
@@ -207,6 +310,30 @@ export default function ProductionShow({ token }) {
     }
   };
 
+  const selectedSecObj = sections.find(s => s.name === searchSection);
+  const selectedStObj = styles.find(s => s.style_no === searchStyle);
+  const selectedPrObj = processes.find(p => p.process_name === searchProcess && (!selectedSecObj || p.section_id === selectedSecObj.id) && (!selectedStObj || p.style_id === selectedStObj.id));
+
+  // Section + Style wise process filter
+  const filteredProcesses = (searchSection && searchStyle && selectedSecObj && selectedStObj)
+    ? processes.filter(p => p.section_id === selectedSecObj.id && p.style_id === selectedStObj.id)
+    : [];
+
+  // Process wise color filter
+  const filteredColors = (searchSection && searchStyle && searchProcess && selectedSecObj && selectedStObj && selectedPrObj)
+    ? colors.filter(c =>
+        c.section_id === selectedSecObj.id &&
+        c.style_id === selectedStObj.id &&
+        c.process_id === selectedPrObj.id
+      )
+    : [];
+
+  const styleOptions = styles?.map((st) => ({
+    id: st.style_no,
+    label: st.style_no,
+    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+  })) || [];
+
   const totalQuantity = productionList.reduce((sum, item) => sum + (Number(item.quantity || item.qty) || 0), 0);
 
   return (
@@ -227,7 +354,7 @@ export default function ProductionShow({ token }) {
       </div>
 
       {/* Filter Search Form Panel */}
-      <form onSubmit={handleSearchSubmit} className="bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-5 shadow-xl space-y-4">
+      <form onSubmit={handleSearchSubmit} className="relative z-20 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-5 shadow-xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-white/6">
           <div className="flex items-center gap-2 text-slate-200 font-semibold text-sm">
             <Filter size={16} className="text-sky-400" />
@@ -252,7 +379,11 @@ export default function ProductionShow({ token }) {
             <select
               className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
               value={searchSection}
-              onChange={(e) => setSearchSection(e.target.value)}
+              onChange={(e) => {
+                setSearchSection(e.target.value);
+                setSearchProcess('');
+                setSearchColor('');
+              }}
             >
               <option value="">সকল সেকশন (All)</option>
               {sections.map(sec => (
@@ -264,28 +395,40 @@ export default function ProductionShow({ token }) {
           {/* Style Filter */}
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5">স্টাইল নম্বর (Style)</label>
-            <select
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
+            <SearchableSelect
+              options={styleOptions}
               value={searchStyle}
-              onChange={(e) => setSearchStyle(e.target.value)}
-            >
-              <option value="">সকল স্টাইল (All)</option>
-              {styles.map(st => (
-                <option key={st.id} value={st.style_no}>{st.style_no}</option>
-              ))}
-            </select>
+              onChange={(val) => {
+                setSearchStyle(val);
+                setSearchProcess('');
+                setSearchColor('');
+              }}
+              placeholder="সকল স্টাইল (All)"
+            />
           </div>
 
           {/* Process Filter */}
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রসেস (Process)</label>
             <select
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
+              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               value={searchProcess}
-              onChange={(e) => setSearchProcess(e.target.value)}
+              onChange={(e) => {
+                setSearchProcess(e.target.value);
+                setSearchColor('');
+              }}
+              disabled={!searchSection || !searchStyle}
             >
-              <option value="">সকল প্রসেস (All)</option>
-              {processes.map(pr => (
+              <option value="">
+                {!searchSection
+                  ? "প্রথমে সেকশন সিলেক্ট করুন"
+                  : !searchStyle
+                  ? "প্রথমে স্টাইল সিলেক্ট করুন"
+                  : filteredProcesses.length === 0
+                  ? "কোনো প্রসেস পাওয়া যায়নি"
+                  : "সকল প্রসেস (All)"}
+              </option>
+              {filteredProcesses.map(pr => (
                 <option key={pr.id} value={pr.process_name}>{pr.process_name}</option>
               ))}
             </select>
@@ -295,12 +438,21 @@ export default function ProductionShow({ token }) {
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5">রং (Color)</label>
             <select
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
+              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               value={searchColor}
               onChange={(e) => setSearchColor(e.target.value)}
+              disabled={!searchSection || !searchStyle || !searchProcess}
             >
-              <option value="">সকল কালার (All)</option>
-              {colors.map(col => (
+              <option value="">
+                {!searchSection || !searchStyle
+                  ? "প্রথমে সেকশন ও স্টাইল সিলেক্ট করুন"
+                  : !searchProcess
+                  ? "প্রথমে প্রসেস সিলেক্ট করুন"
+                  : filteredColors.length === 0
+                  ? "কোনো কালার পাওয়া যায়নি"
+                  : "সকল কালার (All)"}
+              </option>
+              {filteredColors.map(col => (
                 <option key={col.id} value={col.color_name}>{col.color_name}</option>
               ))}
             </select>

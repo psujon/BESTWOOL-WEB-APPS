@@ -1,5 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { GitBranch, Edit, Trash2, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { GitBranch, Edit, Trash2, XCircle, Search, ChevronDown, X, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+function SearchableSelect({
+  options = [],
+  value,
+  onChange,
+  placeholder = 'Select...',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt) => String(opt.id) === String(value));
+
+  const filteredOptions = options.filter((opt) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const labelMatch = opt.label && String(opt.label).toLowerCase().includes(term);
+    const subMatch = opt.sublabel && String(opt.sublabel).toLowerCase().includes(term);
+    return labelMatch || subMatch;
+  });
+
+  return (
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={wrapperRef}>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 pr-8 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
+          placeholder={placeholder}
+          value={isOpen ? searchTerm : (selectedOption ? selectedOption.label : '')}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearchTerm('');
+          }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          required={required && !value}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
+            title="রিসেট করুন"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[9999] left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl py-1 divide-y divide-white/5">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const isSelected = String(opt.id) === String(value);
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
+                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                  }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {opt.sublabel && (
+                    <span className="text-[10px] text-slate-400 ml-2 shrink-0">{opt.sublabel}</span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-xs text-slate-500 text-center">
+              কোনো ফলাফল পাওয়া যায়নি
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Process({ token }) {
   const [processes, setProcesses] = useState([]);
@@ -17,6 +121,23 @@ export default function Process({ token }) {
   const [status, setStatus] = useState('Active');
 
   const [editingId, setEditingId] = useState(null);
+  const [formError, setFormError] = useState('');
+
+  // Table Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredProcesses = processes.filter(proc => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (proc.section_name && proc.section_name.toLowerCase().includes(q)) ||
+      (proc.buyer_name && proc.buyer_name.toLowerCase().includes(q)) ||
+      (proc.style_no && proc.style_no.toLowerCase().includes(q)) ||
+      (proc.process_name && proc.process_name.toLowerCase().includes(q)) ||
+      (proc.type && proc.type.toLowerCase().includes(q)) ||
+      (proc.status && proc.status.toLowerCase().includes(q))
+    );
+  });
 
   useEffect(() => {
     fetchProcesses();
@@ -68,60 +189,96 @@ export default function Process({ token }) {
       });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!sectionId || !buyerId || !styleId || !processName || !type) return;
+    setFormError('');
+
+    if (!sectionId || !buyerId || !styleId || !processName || !type) {
+      const errMsg = 'অনুগ্রহ করে সকল বাধ্যতাবোধক ঘর (Required fields) পূরণ করুন!';
+      setFormError(errMsg);
+      toast.error(errMsg);
+      return;
+    }
+
+    const sId = parseInt(sectionId);
+    const bId = parseInt(buyerId);
+    const stId = parseInt(styleId);
+    const pName = processName.trim();
+
+    // Front-end duplicate check
+    const isDup = processes.some(proc =>
+      proc.section_id === sId &&
+      proc.buyer_id === bId &&
+      proc.style_id === stId &&
+      proc.process_name &&
+      proc.process_name.trim().toLowerCase() === pName.toLowerCase() &&
+      (editingId === null || proc.id !== editingId)
+    );
+
+    if (isDup) {
+      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেস নাম দিয়ে ইতোমধ্যে একটি রেকর্ড আছে।';
+      setFormError(dupMsg);
+      toast.error(dupMsg);
+      return;
+    }
 
     const payload = {
-      section_id: parseInt(sectionId),
-      buyer_id: parseInt(buyerId),
-      style_id: parseInt(styleId),
-      process_name: processName,
+      section_id: sId,
+      buyer_id: bId,
+      style_id: stId,
+      process_name: pName,
       type,
       status
     };
 
-    if (editingId !== null) {
-      fetch(`http://localhost:5000/api/processes/${editingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update process');
-          setEditingId(null);
-          fetchProcesses();
-        })
-        .catch(err => alert(err.message));
-    } else {
-      fetch('http://localhost:5000/api/processes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save process');
-          fetchProcesses();
-        })
-        .catch(err => alert(err.message));
-    }
+    try {
+      if (editingId !== null) {
+        const res = await fetch(`http://localhost:5000/api/processes/${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update process');
 
-    setSectionId('');
-    setBuyerId('');
-    setStyleId('');
-    setProcessName('');
-    setType('complete');
-    setStatus('Active');
+        toast.success('প্রসেস সফলভাবে আপডেট করা হয়েছে!');
+        setEditingId(null);
+      } else {
+        const res = await fetch('http://localhost:5000/api/processes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save process');
+
+        toast.success('নতুন প্রসেস সফলভাবে যুক্ত করা হয়েছে!');
+      }
+
+      // Clear Form on Success
+      setSectionId('');
+      setBuyerId('');
+      setStyleId('');
+      setProcessName('');
+      setType('complete');
+      setStatus('Active');
+      setFormError('');
+      fetchProcesses();
+    } catch (err) {
+      setFormError(err.message);
+      toast.error(err.message);
+    }
   };
 
   const handleEdit = (proc) => {
     setEditingId(proc.id);
+    setFormError('');
     setSectionId(proc.section_id || '');
     setBuyerId(proc.buyer_id || '');
     setStyleId(proc.style_id || '');
@@ -132,6 +289,7 @@ export default function Process({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+    setFormError('');
     setSectionId('');
     setBuyerId('');
     setStyleId('');
@@ -181,6 +339,22 @@ export default function Process({ token }) {
     );
   };
 
+  // Options formatting for SearchableSelect
+  const buyerOptions = buyers?.map((b) => ({
+    id: b.id,
+    label: b.name
+  })) || [];
+
+  const styleOptions = (
+    buyerId
+      ? styles?.filter((st) => String(st.buyer_id) === String(buyerId))
+      : styles
+  )?.map((st) => ({
+    id: st.id,
+    label: st.style_no,
+    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+  })) || [];
+
   return (
     <div className="space-y-6">
 
@@ -191,6 +365,14 @@ export default function Process({ token }) {
             <GitBranch size={18} className="text-sky-400" />
             {editingId !== null ? 'প্রসেস সংশোধন করুন' : 'নতুন প্রসেস যুক্ত করুন'}
           </h3>
+
+          {formError && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-start gap-2.5 text-rose-300 text-xs mb-4">
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+              <span className="leading-relaxed">{formError}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
@@ -209,32 +391,42 @@ export default function Process({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+              <SearchableSelect
+                options={buyerOptions}
                 value={buyerId}
-                onChange={(e) => setBuyerId(e.target.value)}
+                onChange={(selectedId) => {
+                  setBuyerId(selectedId);
+                  // Reset style if the current selected style doesn't belong to selected buyer
+                  if (selectedId && styleId) {
+                    const currentStyle = styles.find(st => String(st.id) === String(styleId));
+                    if (currentStyle && String(currentStyle.buyer_id) !== String(selectedId)) {
+                      setStyleId('');
+                    }
+                  }
+                }}
+                placeholder="Select Buyer..."
                 required
-              >
-                <option value="">Select Buyer</option>
-                {buyers?.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+              <SearchableSelect
+                options={styleOptions}
                 value={styleId}
-                onChange={(e) => setStyleId(e.target.value)}
+                onChange={(selectedId) => {
+                  setStyleId(selectedId);
+                  // Auto pick buyer if not picked yet
+                  if (selectedId && !buyerId) {
+                    const currentStyle = styles.find(st => String(st.id) === String(selectedId));
+                    if (currentStyle && currentStyle.buyer_id) {
+                      setBuyerId(currentStyle.buyer_id);
+                    }
+                  }
+                }}
+                placeholder="Select Style..."
                 required
-              >
-                <option value="">Select Style</option>
-                {styles?.map((st) => (
-                  <option key={st.id} value={st.id}>{st.style_no}</option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
@@ -294,15 +486,41 @@ export default function Process({ token }) {
 
         {/* Process list */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">প্রসেস তালিকা</h3>
-            <span className="text-xs text-slate-400">মোট প্রসেস: {processes.length} টি</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#18223c]/75 backdrop-blur-md p-3.5 px-4 border border-white/6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">প্রসেস তালিকা</h3>
+              <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
+                {searchQuery ? `ফলাফল: ${filteredProcesses.length} টি` : `মোট প্রসেস: ${processes.length} টি`}
+              </span>
+            </div>
+
+            {/* Real-time Process Search Option */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                placeholder="প্রসেস, সেকশন, বায়ার, স্টাইল বা টাইপ..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                  title="সার্চ রিসেট করুন"
+                >
+                  <XCircle size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div className="text-slate-400">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
           ) : (
-            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto">
+            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
@@ -317,14 +535,23 @@ export default function Process({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {processes.length === 0 ? (
+                  {filteredProcesses.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-8 text-slate-500">
-                        কোন প্রসেস রেকর্ড পাওয়া যায়নি
+                      <td colSpan="8" className="text-center py-10 text-slate-400 space-y-2">
+                        <div>কোন প্রসেস রেকর্ড খুঁজে পাওয়া যায়নি</div>
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
+                          >
+                            সার্চ রিসেট করুন
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    processes.map((proc, index) => (
+                    filteredProcesses.map((proc, index) => (
                       <tr key={proc.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{proc.section_name || '—'}</td>

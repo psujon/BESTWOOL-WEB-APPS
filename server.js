@@ -31,6 +31,8 @@ app.use('/api/colors', require('./routes/colors'));
 app.use('/api/company', require('./routes/company'));
 app.use('/api/employees', require('./routes/employees'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/approvals', require('./routes/approvals'));
+app.use('/api/reports', require('./routes/reports'));
 
 
 
@@ -44,6 +46,6 @@ app.get('*', (req, res) => {
 });
 
 // Start Express server
-app.listen(PORT, () => {
-  console.log(`🚀 Garments Dashboard Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Garments Dashboard Server running on http://0.0.0.0:${PORT}`);
 });

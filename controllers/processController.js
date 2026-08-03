@@ -29,12 +29,36 @@ exports.create = async (req, res) => {
   const { section_id, buyer_id, style_id, process_name, type, status } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const sId = parseInt(section_id);
+    const bId = parseInt(buyer_id);
+    const stId = parseInt(style_id);
+    const pName = (process_name || '').trim();
+
+    // Check for duplicate process entry
+    const existingList = await prisma.process.findMany({
+      where: {
+        section_id: sId,
+        buyer_id: bId,
+        style_id: stId
+      }
+    });
+
+    const isDuplicate = existingList.some(
+      p => p.process_name && p.process_name.trim().toLowerCase() === pName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেস নাম দিয়ে ইতোমধ্যে একটি রেকর্ড রয়েছে।' 
+      });
+    }
+
     const process = await prisma.process.create({
       data: {
-        section_id: parseInt(section_id),
-        buyer_id: parseInt(buyer_id),
-        style_id: parseInt(style_id),
-        process_name,
+        section_id: sId,
+        buyer_id: bId,
+        style_id: stId,
+        process_name: pName,
         type,
         status: status || 'Active',
         processed_by: userId,
@@ -52,13 +76,39 @@ exports.update = async (req, res) => {
   const { section_id, buyer_id, style_id, process_name, type, status } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
+    const procId = parseInt(id);
+    const sId = parseInt(section_id);
+    const bId = parseInt(buyer_id);
+    const stId = parseInt(style_id);
+    const pName = (process_name || '').trim();
+
+    // Check for duplicate process entry excluding current record
+    const existingList = await prisma.process.findMany({
+      where: {
+        section_id: sId,
+        buyer_id: bId,
+        style_id: stId,
+        NOT: { id: procId }
+      }
+    });
+
+    const isDuplicate = existingList.some(
+      p => p.process_name && p.process_name.trim().toLowerCase() === pName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেস নাম দিয়ে ইতোমধ্যে একটি রেকর্ড রয়েছে।' 
+      });
+    }
+
     const process = await prisma.process.update({
-      where: { id: parseInt(id) },
+      where: { id: procId },
       data: {
-        section_id: parseInt(section_id),
-        buyer_id: parseInt(buyer_id),
-        style_id: parseInt(style_id),
-        process_name,
+        section_id: sId,
+        buyer_id: bId,
+        style_id: stId,
+        process_name: pName,
         type,
         status,
         processed_by: userId,

@@ -1,5 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { DollarSign, Edit, Trash2, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { DollarSign, Edit, Trash2, XCircle, Search, AlertCircle, ChevronDown, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+function SearchableSelect({
+  options = [],
+  value,
+  onChange,
+  placeholder = 'Select...',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt) => String(opt.id) === String(value));
+
+  const filteredOptions = options.filter((opt) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const labelMatch = opt.label && String(opt.label).toLowerCase().includes(term);
+    const subMatch = opt.sublabel && String(opt.sublabel).toLowerCase().includes(term);
+    return labelMatch || subMatch;
+  });
+
+  return (
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={wrapperRef}>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 pr-8 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
+          placeholder={placeholder}
+          value={isOpen ? searchTerm : (selectedOption ? selectedOption.label : '')}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearchTerm('');
+          }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          required={required && !value}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
+            title="রিসেট করুন"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[9999] left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl py-1 divide-y divide-white/5">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const isSelected = String(opt.id) === String(value);
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
+                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                  }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {opt.sublabel && (
+                    <span className="text-[10px] text-slate-400 ml-2 shrink-0">{opt.sublabel}</span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-xs text-slate-500 text-center">
+              কোনো ফলাফল পাওয়া যায়নি
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -26,6 +130,22 @@ export default function PieceRate({ token }) {
   const [effectiveDate, setEffectiveDate] = useState(getTodayDateString());
 
   const [editingId, setEditingId] = useState(null);
+  const [formError, setFormError] = useState('');
+
+  // Table Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRates = rates.filter(item => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (item.section_name && item.section_name.toLowerCase().includes(q)) ||
+      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
+      (item.process_name && item.process_name.toLowerCase().includes(q)) ||
+      (item.color_name && item.color_name.toLowerCase().includes(q)) ||
+      (item.rate && item.rate.toString().includes(q))
+    );
+  });
 
   useEffect(() => {
     fetchRates();
@@ -87,65 +207,99 @@ export default function PieceRate({ token }) {
       });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!sectionId || !styleId || !processId || !colorId || !rate || !effectiveDate) return;
+    setFormError('');
+
+    if (!sectionId || !styleId || !processId || !colorId || !rate || !effectiveDate) {
+      const errMsg = 'অনুগ্রহ করে সকল বাধ্যতাবোধক ঘর (Required fields) পূরণ করুন!';
+      setFormError(errMsg);
+      toast.error(errMsg);
+      return;
+    }
+
+    const sId = parseInt(sectionId);
+    const stId = parseInt(styleId);
+    const pId = parseInt(processId);
+    const cId = parseInt(colorId);
+
+    // Front-end duplicate check
+    const isDup = rates.some(item =>
+      item.section_id === sId &&
+      item.style_id === stId &&
+      item.process_id === pId &&
+      item.color_id === cId &&
+      (editingId === null || item.id !== editingId)
+    );
+
+    if (isDup) {
+      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।';
+      setFormError(dupMsg);
+      toast.error(dupMsg);
+      return;
+    }
 
     const payload = {
-      section_id: parseInt(sectionId),
-      style_id: parseInt(styleId),
-      process_id: parseInt(processId),
-      color_id: parseInt(colorId),
+      section_id: sId,
+      style_id: stId,
+      process_id: pId,
+      color_id: cId,
       rate: parseFloat(rate),
       effective_date: effectiveDate
     };
 
-    if (editingId !== null) {
-      fetch(`http://localhost:5000/api/piece-rates/${editingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update piece rate');
-          setEditingId(null);
-          fetchRates();
-        })
-        .catch(err => alert(err.message));
-    } else {
-      fetch('http://localhost:5000/api/piece-rates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to save piece rate');
-          fetchRates();
-        })
-        .catch(err => alert(err.message));
-    }
+    try {
+      if (editingId !== null) {
+        const res = await fetch(`http://localhost:5000/api/piece-rates/${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update piece rate');
 
-    setSectionId('');
-    setStyleId('');
-    setProcessId('');
-    setColorId('');
-    setRate('');
-    setEffectiveDate(getTodayDateString());
+        toast.success('পিস রেট সফলভাবে আপডেট করা হয়েছে!');
+        setEditingId(null);
+      } else {
+        const res = await fetch('http://localhost:5000/api/piece-rates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save piece rate');
+
+        toast.success('নতুন পিস রেট সফলভাবে যুক্ত করা হয়েছে!');
+      }
+
+      setSectionId('');
+      setStyleId('');
+      setProcessId('');
+      setColorId('');
+      setRate('');
+      setEffectiveDate(getTodayDateString());
+      setFormError('');
+      fetchRates();
+    } catch (err) {
+      setFormError(err.message);
+      toast.error(err.message);
+    }
   };
 
   const handleEdit = (item) => {
     setEditingId(item.id);
+    setFormError('');
     setSectionId(item.section_id || '');
     setStyleId(item.style_id || '');
     setProcessId(item.process_id || '');
     setColorId(item.color_id || '');
-    setRate(item.rate.toString());
+    setRate(item.rate ? item.rate.toString() : '');
 
     if (item.effective_date) {
       const dbDate = new Date(item.effective_date);
@@ -160,6 +314,7 @@ export default function PieceRate({ token }) {
 
   const handleCancelEdit = () => {
     setEditingId(null);
+    setFormError('');
     setSectionId('');
     setStyleId('');
     setProcessId('');
@@ -174,24 +329,42 @@ export default function PieceRate({ token }) {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete rate');
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete rate');
+          return data;
+        })
+        .then(() => {
+          toast.success('পিস রেট সফলভাবে ডিলিট করা হয়েছে!');
           fetchRates();
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
-  const filteredProcesses = processes.filter(p => p.section_id === parseInt(sectionId));
+  // Options formatting for SearchableSelect
+  const styleOptions = styles?.map((st) => ({
+    id: st.id,
+    label: st.style_no,
+    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+  })) || [];
 
-  const filteredColors = colors.filter(c =>
-    c.section_id === parseInt(sectionId) &&
-    c.style_id === parseInt(styleId) &&
-    c.process_id === parseInt(processId)
-  );
+  // Section + Style wise process load
+  const formFilteredProcesses = (sectionId && styleId)
+    ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
+    : [];
+
+  // Process wise color load
+  const formFilteredColors = (sectionId && styleId && processId)
+    ? colors.filter(c =>
+        c.section_id === parseInt(sectionId) &&
+        c.style_id === parseInt(styleId) &&
+        c.process_id === parseInt(processId)
+      )
+    : [];
 
   return (
     <div className="space-y-6">
@@ -203,6 +376,14 @@ export default function PieceRate({ token }) {
             <DollarSign size={18} className="text-sky-400" />
             {editingId !== null ? 'পিস রেট সংশোধন করুন' : 'পিস রেট সেট করুন'}
           </h3>
+
+          {formError && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-start gap-2.5 text-rose-300 text-xs mb-4">
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+              <span className="leading-relaxed">{formError}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
@@ -225,36 +406,41 @@ export default function PieceRate({ token }) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+              <SearchableSelect
+                options={styleOptions}
                 value={styleId}
-                onChange={(e) => {
-                  setStyleId(e.target.value);
+                onChange={(selectedId) => {
+                  setStyleId(selectedId);
+                  setProcessId('');
                   setColorId('');
                 }}
+                placeholder="Select Style..."
                 required
-              >
-                <option value="">Select Style</option>
-                {styles?.map((st) => (
-                  <option key={st.id} value={st.id}>{st.style_no}</option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস *</label>
               <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
                   setColorId('');
                 }}
                 required
-                disabled={!sectionId}
+                disabled={!sectionId || !styleId}
               >
-                <option value="">{sectionId ? "Select Process" : "First select a section"}</option>
-                {filteredProcesses.map((p) => (
+                <option value="">
+                  {!sectionId
+                    ? "First select a section"
+                    : !styleId
+                    ? "First select a style"
+                    : formFilteredProcesses.length === 0
+                    ? "No processes found for this section & style"
+                    : "Select Process"}
+                </option>
+                {formFilteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
                 ))}
               </select>
@@ -263,14 +449,22 @@ export default function PieceRate({ token }) {
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">রং (Color) *</label>
               <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 value={colorId}
                 onChange={(e) => setColorId(e.target.value)}
                 required
-                disabled={!processId || !styleId}
+                disabled={!sectionId || !styleId || !processId}
               >
-                <option value="">{processId && styleId ? "Select Color" : "Select process & style first"}</option>
-                {filteredColors.map((c) => (
+                <option value="">
+                  {!sectionId || !styleId
+                    ? "First select section & style"
+                    : !processId
+                    ? "First select a process"
+                    : formFilteredColors.length === 0
+                    ? "No colors found for this process"
+                    : "Select Color"}
+                </option>
+                {formFilteredColors.map((c) => (
                   <option key={c.id} value={c.id}>{c.color_name}</option>
                 ))}
               </select>
@@ -320,15 +514,41 @@ export default function PieceRate({ token }) {
 
         {/* Piece Rate Table List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">পিস রেট তালিকা</h3>
-            <span className="text-xs text-slate-400">মোট সেটআপ: {rates.length} টি</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#18223c]/75 backdrop-blur-md p-3.5 px-4 border border-white/6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">পিস রেট তালিকা</h3>
+              <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
+                {searchQuery ? `ফলাফল: ${filteredRates.length} টি` : `মোট সেটআপ: ${rates.length} টি`}
+              </span>
+            </div>
+
+            {/* Real-time Piece Rate Search Option */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                placeholder="সেকশন, স্টাইল, প্রসেস, কালার বা রেট..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                  title="সার্চ রিসেট করুন"
+                >
+                  <XCircle size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div className="text-slate-400">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
           ) : (
-            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto">
+            <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
@@ -343,14 +563,23 @@ export default function PieceRate({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {rates.length === 0 ? (
+                  {filteredRates.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-8 text-slate-500">
-                        কোন পিস রেট রেকর্ড পাওয়া যায়নি
+                      <td colSpan="8" className="text-center py-10 text-slate-400 space-y-2">
+                        <div>কোন পিস রেট রেকর্ড খুঁজে পাওয়া যায়নি</div>
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
+                          >
+                            সার্চ রিসেট করুন
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    rates.map((item, index) => (
+                    filteredRates.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>
