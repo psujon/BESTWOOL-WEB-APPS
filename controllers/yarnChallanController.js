@@ -1,5 +1,36 @@
 const { prisma } = require('../db');
 
+// Helper to find matching buyer order (supports both section/process specific and general style orders)
+async function findMatchingBuyerOrder(client, stId, secId, prId, colId) {
+  let order = null;
+  if (secId && prId) {
+    order = await client.buyerOrder.findFirst({
+      where: {
+        style_id: stId,
+        section_id: secId,
+        process_id: prId,
+        ...(colId ? { color_id: colId } : {})
+      }
+    });
+  }
+  if (!order) {
+    order = await client.buyerOrder.findFirst({
+      where: {
+        style_id: stId,
+        ...(colId ? { color_id: colId } : {})
+      }
+    });
+  }
+  if (!order) {
+    order = await client.buyerOrder.findFirst({
+      where: {
+        style_id: stId
+      }
+    });
+  }
+  return order;
+}
+
 exports.getAll = async (req, res) => {
   try {
     const { search, limit } = req.query;
@@ -15,6 +46,20 @@ exports.getAll = async (req, res) => {
         { process: { process_name: { contains: q } } },
         { color: { color_name: { contains: q } } }
       ];
+    }
+
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
     }
 
     const takeLimit = limit ? parseInt(limit) : (search ? undefined : 50);
@@ -57,22 +102,11 @@ exports.create = async (req, res) => {
   const userId = req.user ? req.user.id : null;
 
   try {
-    const whereBuyerOrder = {
-      section_id: secId,
-      style_id: stId,
-      process_id: prId
-    };
-    if (colId) {
-      whereBuyerOrder.color_id = colId;
-    }
-
-    const buyerOrder = await prisma.buyerOrder.findFirst({
-      where: whereBuyerOrder
-    });
+    const buyerOrder = await findMatchingBuyerOrder(prisma, stId, secId, prId, colId);
 
     if (!buyerOrder) {
       return res.status(400).json({ 
-        message: 'এই সেকশন, স্টাইল এবং প্রসেসের জন্য কোনো বায়ার অর্ডার পাওয়া যায়নি! অনুগ্রহ করে প্রথমে বায়ার অর্ডার তৈরি করুন।' 
+        message: 'এই স্টাইলের জন্য কোনো বায়ার অর্ডার পাওয়া যায়নি! অনুগ্রহ করে প্রথমে বায়ার অর্ডার তৈরি করুন।' 
       });
     }
 
@@ -92,6 +126,7 @@ exports.create = async (req, res) => {
     const challan = await prisma.$transaction(async (tx) => {
       const created = await tx.yarnChallan.create({
         data: {
+          unit_id: req.unitId || null,
           section_id: secId,
           style_id: stId,
           process_id: prId,
@@ -140,32 +175,19 @@ exports.update = async (req, res) => {
     });
 
     if (!existingChallan) {
-      return res.status(404).json({ message: 'চালান পাওয়া যায়নি' });
+      return res.status(404).json({ message: 'চালান রেকর্ড খুঁজে পাওয়া যায়নি!' });
     }
 
-    const targetWhere = {
-      section_id: secId,
-      style_id: stId,
-      process_id: prId
-    };
-    if (colId) {
-      targetWhere.color_id = colId;
-    }
-
-    const targetBuyerOrder = await prisma.buyerOrder.findFirst({
-      where: targetWhere
-    });
+    const targetBuyerOrder = await findMatchingBuyerOrder(prisma, stId, secId, prId, colId);
 
     if (!targetBuyerOrder) {
       return res.status(400).json({ 
-        message: 'এই সেকশন, স্টাইল এবং প্রসেসের জন্য কোনো বায়ার অর্ডার পাওয়া যায়নি! অনুগ্রহ করে প্রথমে বায়ার অর্ডার তৈরি করুন।' 
+        message: 'এই স্টাইলের জন্য কোনো বায়ার অর্ডার পাওয়া যায়নি! অনুগ্রহ করে প্রথমে বায়ার অর্ডার তৈরি করুন।' 
       });
     }
 
     const isSameOrder = (
-      existingChallan.section_id === secId &&
       existingChallan.style_id === stId &&
-      existingChallan.process_id === prId &&
       (colId ? existingChallan.color_id === colId : true)
     );
 
@@ -186,18 +208,13 @@ exports.update = async (req, res) => {
     const gatePassNoParsed = gate_pass_no && gate_pass_no.trim() !== '' ? gate_pass_no.trim() : null;
 
     const updatedChallan = await prisma.$transaction(async (tx) => {
-      const oldWhere = {
-        section_id: existingChallan.section_id,
-        style_id: existingChallan.style_id,
-        process_id: existingChallan.process_id
-      };
-      if (existingChallan.color_id) {
-        oldWhere.color_id = existingChallan.color_id;
-      }
-
-      const oldBuyerOrder = await tx.buyerOrder.findFirst({
-        where: oldWhere
-      });
+      const oldBuyerOrder = await findMatchingBuyerOrder(
+        tx,
+        existingChallan.style_id,
+        existingChallan.section_id,
+        existingChallan.process_id,
+        existingChallan.color_id
+      );
 
       if (oldBuyerOrder) {
         const newReceived = Math.max(0, oldBuyerOrder.yarn_received - existingChallan.quantity);
@@ -257,18 +274,13 @@ exports.delete = async (req, res) => {
 
     if (existingChallan) {
       await prisma.$transaction(async (tx) => {
-        const boWhere = {
-          section_id: existingChallan.section_id,
-          style_id: existingChallan.style_id,
-          process_id: existingChallan.process_id
-        };
-        if (existingChallan.color_id) {
-          boWhere.color_id = existingChallan.color_id;
-        }
-
-        const buyerOrder = await tx.buyerOrder.findFirst({
-          where: boWhere
-        });
+        const buyerOrder = await findMatchingBuyerOrder(
+          tx,
+          existingChallan.style_id,
+          existingChallan.section_id,
+          existingChallan.process_id,
+          existingChallan.color_id
+        );
 
         if (buyerOrder) {
           const newReceived = Math.max(0, buyerOrder.yarn_received - existingChallan.quantity);

@@ -2,11 +2,20 @@ const { prisma } = require('../db');
 
 exports.getAllActive = async (req, res) => {
   try {
+    const where = { status: 'Active' };
+    if (req.unitId) {
+      where.OR = [
+        { unit_id: req.unitId },
+        { section: { unit_id: req.unitId } }
+      ];
+    }
+
     const list = await prisma.employee.findMany({
-      where: { status: 'Active' },
+      where,
       include: {
-        section: { select: { name: true, code: true } },
-        block: { select: { id: true, name: true, code: true } }
+        section: { select: { name: true, code: true, unit_id: true } },
+        block: { select: { id: true, name: true, code: true } },
+        unit: { select: { id: true, name: true, code: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -17,6 +26,7 @@ exports.getAllActive = async (req, res) => {
       section_code: emp.section?.code || null,
       block_name: emp.block?.name || null,
       block_code: emp.block?.code || null,
+      unit_name: emp.unit?.name || null,
       section: undefined,
       block: undefined
     }));
@@ -29,8 +39,9 @@ exports.getAllActive = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { card_no, name, designation, join_date, section_id, block_id } = req.body;
+  const { card_no, name, designation, join_date, section_id, block_id, unit_id } = req.body;
   const userId = req.user ? req.user.id : null;
+  const assignedUnitId = unit_id ? parseInt(unit_id) : (req.unitId || null);
 
   if (!card_no || !name || !designation || !join_date || !section_id || !block_id) {
     return res.status(400).json({ message: 'কার্ড নং, নাম, পদবী, জয়েন ডেট, সেকশন ও ব্লক পূরণ করা বাধ্যতামূলক!' });
@@ -45,6 +56,7 @@ exports.create = async (req, res) => {
         join_date: new Date(join_date),
         section_id: parseInt(section_id),
         block_id: block_id ? parseInt(block_id) : null,
+        unit_id: assignedUnitId,
         status: 'Active',
         processed_by: userId,
         processed_date: new Date()

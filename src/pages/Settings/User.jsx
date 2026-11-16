@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, KeyRound, Eye, EyeOff, X } from 'lucide-react';
+import { UserPlus, KeyRound, Eye, EyeOff, X, Warehouse, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function User({ token }) {
   const [users, setUsers] = useState([]);
+  const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(false);
 
@@ -12,6 +13,7 @@ export default function User({ token }) {
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('operator');
+  const [unitId, setUnitId] = useState('');
 
   // Admin Change Password Modal State
   const [selectedUserForPass, setSelectedUserForPass] = useState(null);
@@ -21,16 +23,19 @@ export default function User({ token }) {
 
   useEffect(() => {
     setLoading(true);
-    fetch('http://localhost:5000/api/users', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        setUsers(Array.isArray(data) ? data : []);
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    Promise.all([
+      fetch('http://localhost:5000/api/users', { headers }).then(res => res.json()),
+      fetch('http://localhost:5000/api/units', { headers }).then(res => res.json())
+    ])
+      .then(([usersData, unitsData]) => {
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setUnits(Array.isArray(unitsData) ? unitsData : []);
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching users:', err);
+        console.error('Error fetching users or units:', err);
         setLoading(false);
       });
   }, [token, refresh]);
@@ -42,13 +47,23 @@ export default function User({ token }) {
       return;
     }
 
+    // If role is admin, unit_id is automatically null (all units access)
+    const payload = {
+      name,
+      username,
+      password,
+      email,
+      role,
+      unit_id: role === 'admin' ? null : (unitId ? parseInt(unitId) : null)
+    };
+
     fetch('http://localhost:5000/api/users', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ name, username, password, email, role })
+      body: JSON.stringify(payload)
     })
       .then(async res => {
         const data = await res.json();
@@ -61,7 +76,8 @@ export default function User({ token }) {
         setUsername('');
         setPassword('');
         setEmail('');
-        setRefresh(!refresh);
+        setUnitId('');
+        setRefresh(prev => !prev);
       })
       .catch(err => {
         toast.error(err.message);
@@ -84,9 +100,46 @@ export default function User({ token }) {
       })
       .then(() => {
         toast.success(`ইউজার রোল সফলভাবে "${newRole}" এ পরিবর্তিত করা হয়েছে!`);
-        setRefresh(!refresh);
+        setRefresh(prev => !prev);
       })
       .catch(err => toast.error(err.message));
+  };
+
+  const handleUnitChange = (userId, newUnitId) => {
+    const formattedUnitId = newUnitId ? parseInt(newUnitId) : null;
+    const user = users.find(u => u.id === userId);
+    const unitObj = units.find(unit => unit.id === formattedUnitId) || null;
+
+    // Optimistic UI update
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return { ...u, unit_id: formattedUnitId, unit: unitObj };
+      }
+      return u;
+    }));
+
+    fetch(`http://localhost:5000/api/users/${userId}/unit`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ unit_id: formattedUnitId })
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update unit');
+        return data;
+      })
+      .then(() => {
+        const unitText = unitObj ? unitObj.name : 'সকল ইউনিট (All Units)';
+        toast.success(`@${user?.username || 'ইউজার'} এর অনুমোদিত ইউনিট "${unitText}" নির্ধারণ করা হয়েছে!`);
+        setRefresh(prev => !prev);
+      })
+      .catch(err => {
+        toast.error(err.message);
+        setRefresh(prev => !prev);
+      });
   };
 
   const handleAdminSavePassword = (e) => {
@@ -125,9 +178,9 @@ export default function User({ token }) {
   return (
     <div className="space-y-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* User Creation Form */}
-        <div className="lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* User Creation Form (5 cols) */}
+        <div className="lg:col-span-5 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
           <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
             <UserPlus size={18} className="text-sky-400" />
             নতুন ইউজার তৈরি করুন
@@ -194,6 +247,44 @@ export default function User({ token }) {
               </select>
             </div>
 
+            {/* Unit Permission Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Warehouse size={15} className="text-sky-400" />
+                  <span>অনুমোদিত ইউনিট (Unit Access)</span>
+                </span>
+                {role === 'admin' && (
+                  <span className="text-[11px] text-emerald-400 font-medium">এডমিন: সকল ইউনিটে এক্সেস</span>
+                )}
+              </label>
+
+              {role === 'admin' ? (
+                <div className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg py-2 px-3 text-emerald-400 text-xs font-medium flex items-center gap-2">
+                  <ShieldCheck size={16} className="shrink-0" />
+                  <span>সকল ইউনিট (All Units) — এডমিনের সব ইউনিটে স্বয়ংক্রিয় ফুল অ্যাক্সেস রয়েছে।</span>
+                </div>
+              ) : (
+                <select
+                  className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                  value={unitId}
+                  onChange={(e) => setUnitId(e.target.value)}
+                >
+                  <option value="">-- সকল ইউনিট (All Units / উন্মুক্ত এক্সেস) --</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} {u.code ? `(${u.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {role !== 'admin' && (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  * নির্দিষ্ট ইউনিট নির্বাচন করলে এই অপারেটর কেবল সেই ইউনিটের কাজ করার অনুমতি পাবে।
+                </p>
+              )}
+            </div>
+
             <button
               type="submit"
               className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-center text-sm font-semibold pt-2"
@@ -203,34 +294,41 @@ export default function User({ token }) {
           </form>
         </div>
 
-        {/* User Table List & Role Changer */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* User Table List & Role/Unit Changer (7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">ইউজার তালিকা ও রোল/পাসওয়ার্ড নিয়ন্ত্রণ</h3>
+            <h3 className="text-lg font-semibold text-slate-100">ইউজার তালিকা ও ইউনিট/রোল নিয়ন্ত্রণ</h3>
             <span className="text-xs text-slate-400">মোট রেজিস্টার্ড: {users.length} জন</span>
           </div>
 
           {loading ? (
-            <div className="text-slate-400">লোড হচ্ছে...</div>
+            <div className="text-slate-400 py-8 text-center bg-[#18223c]/50 rounded-2xl border border-white/6">
+              লোড হচ্ছে...
+            </div>
           ) : (
             <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">পূর্ণ নাম</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">ইউজারনেম</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">রোল (Role)</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold text-center">অ্যাকশন / পাসওয়ার্ড</th>
+                    <th className="py-3.5 px-4 text-slate-300 font-semibold text-xs">পূর্ণ নাম</th>
+                    <th className="py-3.5 px-3 text-slate-300 font-semibold text-xs">ইউজারনেম</th>
+                    <th className="py-3.5 px-3 text-slate-300 font-semibold text-xs">রোল</th>
+                    <th className="py-3.5 px-4 text-slate-300 font-semibold text-xs">অনুমোদিত ইউনিট</th>
+                    <th className="py-3.5 px-3 text-slate-300 font-semibold text-center text-xs">পাসওয়ার্ড</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
                   {users.map((u) => (
                     <tr key={u.id} className="hover:bg-white/2 transition-colors">
-                      <td className="py-3.5 px-4 text-slate-200"><strong>{u.name}</strong></td>
-                      <td className="py-3.5 px-4"><span className="text-sky-400">@{u.username}</span></td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 text-slate-200 text-xs">
+                        <strong>{u.name}</strong>
+                      </td>
+                      <td className="py-3.5 px-3 text-xs">
+                        <span className="text-sky-400">@{u.username}</span>
+                      </td>
+                      <td className="py-3.5 px-3">
                         <select
-                          className={`bg-[#0b0f19] border border-white/10 rounded px-2.5 py-1 text-xs font-bold focus:outline-none transition-colors cursor-pointer uppercase ${u.role === 'admin'
+                          className={`bg-[#0b0f19] border border-white/10 rounded px-2 py-1 text-xs font-bold focus:outline-none transition-colors cursor-pointer uppercase ${u.role === 'admin'
                               ? 'text-red-400 border-red-500/30'
                               : u.role === 'operator'
                                 ? 'text-emerald-400 border-emerald-500/30'
@@ -244,18 +342,46 @@ export default function User({ token }) {
                           <option value="admin" className="bg-[#131b2e] text-red-400">ADMIN</option>
                         </select>
                       </td>
-                      <td className="py-3.5 px-4 text-center">
+
+                      {/* Unit Permission Column */}
+                      <td className="py-3.5 px-4">
+                        {u.role === 'admin' ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
+                            <ShieldCheck size={13} />
+                            <span>সকল ইউনিট (ফুল এক্সেস)</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <Warehouse size={13} className="text-sky-400 shrink-0" />
+                            <select
+                              className="bg-[#0b0f19] border border-white/10 rounded px-2.5 py-1 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors cursor-pointer text-slate-200"
+                              value={u.unit_id ? String(u.unit_id) : ""}
+                              onChange={(e) => handleUnitChange(u.id, e.target.value)}
+                              title="অপারেটরের ইউনিট পারমিশন পরিবর্তন করুন"
+                            >
+                              <option value="">সকল ইউনিট (All Units)</option>
+                              {units.map((unit) => (
+                                <option key={unit.id} value={unit.id}>
+                                  {unit.name} {unit.code ? `(${unit.code})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-3 text-center">
                         <button
                           onClick={() => {
                             setSelectedUserForPass(u);
                             setAdminNewPassword('');
                             setShowAdminPass(false);
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 text-xs font-semibold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 text-xs font-semibold transition-colors cursor-pointer"
                           title="পাসওয়ার্ড পরিবর্তন করুন"
                         >
-                          <KeyRound size={13} />
-                          <span>পাসওয়ার্ড চেঞ্জ</span>
+                          <KeyRound size={12} />
+                          <span>রিসেট</span>
                         </button>
                       </td>
                     </tr>
@@ -334,4 +460,3 @@ export default function User({ token }) {
     </div>
   );
 }
-

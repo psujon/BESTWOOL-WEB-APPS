@@ -12,7 +12,12 @@ exports.login = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { username },
-      include: { permissions: true }
+      include: {
+        permissions: true,
+        unit: {
+          select: { id: true, name: true, code: true }
+        }
+      }
     });
 
     if (!user) {
@@ -42,7 +47,10 @@ exports.login = async (req, res) => {
         name: user.name,
         username: user.username,
         role: user.role,
-        email: user.email
+        email: user.email,
+        unit_id: user.unit_id,
+        unit: user.unit,
+        hasAllUnitsAccess: user.role === 'admin' || !user.unit_id
       },
       permissions,
       isMockMode: false
@@ -57,7 +65,17 @@ exports.getProfile = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, name: true, username: true, email: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        role: true,
+        unit_id: true,
+        unit: {
+          select: { id: true, name: true, code: true }
+        }
+      },
     });
 
     if (!user) {
@@ -74,7 +92,10 @@ exports.getProfile = async (req, res) => {
     });
 
     res.json({
-      user,
+      user: {
+        ...user,
+        hasAllUnitsAccess: user.role === 'admin' || !user.unit_id
+      },
       permissions,
       isMockMode: false
     });

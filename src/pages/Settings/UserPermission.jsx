@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LayoutGrid, Table } from 'lucide-react';
+import { Shield, LayoutGrid, Table, Warehouse, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function UserPermission({ token }) {
@@ -160,6 +160,10 @@ export default function UserPermission({ token }) {
                         }`}>
                         {u.role}
                       </span>
+                      <span className="mt-1 text-[11px] text-slate-300 flex items-center gap-1 font-normal bg-white/5 px-2 py-0.5 rounded">
+                        <Warehouse size={11} className="text-sky-400 shrink-0" />
+                        <span>{u.role === 'admin' ? 'সকল ইউনিট' : (u.unit?.name || 'সকল ইউনিট')}</span>
+                      </span>
                     </div>
                   </th>
                 ))}
@@ -216,6 +220,10 @@ export default function UserPermission({ token }) {
                     <div>
                       <strong className="text-base text-slate-100">{user.name}</strong>
                       <div className="text-xs text-sky-400 font-medium mt-0.5">@{user.username}</div>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-300 mt-1.5">
+                        <Warehouse size={12} className="text-sky-400 shrink-0" />
+                        <span>ইউনিট: <strong className="text-slate-100">{isAdmin ? 'সকল ইউনিট (All Units)' : (user.unit?.name || 'সকল ইউনিট')}</strong></span>
+                      </div>
                     </div>
                     <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider ${isAdmin
                         ? 'bg-red-500/10 text-red-400 border border-red-500/20'

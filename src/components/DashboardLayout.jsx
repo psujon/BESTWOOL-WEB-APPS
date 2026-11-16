@@ -1,12 +1,21 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Menu, LogOut, Bell, ShieldAlert } from 'lucide-react';
+import { Menu, LogOut, Bell, ShieldAlert, Warehouse, ChevronDown } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { useUnit } from '../context/UnitContext';
 
 export default function DashboardLayout({ 
   permissions, user, onLogout, sidebarOpen, setSidebarOpen 
 }) {
   const location = useLocation();
+  const {
+    units,
+    selectedUnitId,
+    selectedUnit,
+    canSwitchUnit,
+    switchUnit,
+    unitRefreshKey
+  } = useUnit();
   
   // Extract route key from pathname (e.g. "/dashboard/buyer" -> "buyer")
   const getRouteKey = () => {
@@ -45,6 +54,7 @@ export default function DashboardLayout({
     production_show: { title: 'প্রোডাকশন রিপোর্ট শো', subtitle: 'উৎপাদিত পণ্যের সার্বিক হিসেব' },
     user: { title: 'ইউজার সেটিংস', subtitle: 'সিস্টেম অ্যাক্সেস অ্যাকাউন্টসমূহ' },
     user_permission: { title: 'ইউজার পারমিশন সেটিংস', subtitle: 'মেন্যু অ্যাক্সেস কন্ট্রোল লিস্ট (ACL)' },
+    unit: { title: 'ইউনিট সেটিংস', subtitle: 'কারখানা ও বিভিন্ন ইউনিট ব্যবস্থাপনা' },
     section: { title: 'সেকশন সেটিংস', subtitle: 'কারখানার বিভাগসমূহ নিয়ন্ত্রণ প্যানেল' },
     company_profile: { title: 'কোম্পানী প্রোফাইল সেটিংস', subtitle: 'প্রতিষ্ঠানের লোগো, তথ্য ও প্রাতিষ্ঠানিক পরিচিতি' },
     database_backup: { title: 'ডাটাবেজ ব্যাকআপ প্যানেল', subtitle: 'MySQL ডাম্প ফাইল ও রিসোর্স রিকভারি' }
@@ -90,6 +100,51 @@ export default function DashboardLayout({
             </div>
           </div>
 
+          {/* Active Unit Indicator & Switcher in Navbar */}
+          <div className="flex items-center gap-2 bg-[#0b0f19]/90 border border-white/10 rounded-xl px-3.5 py-1.5 shadow-lg">
+            <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+              <Warehouse size={15} />
+            </div>
+            
+            <div className="flex flex-col">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold leading-tight flex items-center gap-1.5">
+                <span>ইউনিট</span>
+                {selectedUnitId === 'ALL' ? (
+                  <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-1 rounded border border-emerald-500/20">ALL</span>
+                ) : (
+                  <span className="text-[9px] text-sky-400 font-bold bg-sky-500/10 px-1 rounded border border-sky-500/20">
+                    {selectedUnit?.code || 'ACTIVE'}
+                  </span>
+                )}
+              </div>
+
+              {canSwitchUnit ? (
+                <div className="relative flex items-center">
+                  <select
+                    value={selectedUnitId}
+                    onChange={(e) => switchUnit(e.target.value)}
+                    className="bg-transparent text-slate-100 text-xs font-bold focus:outline-none cursor-pointer pr-5 hover:text-sky-300 transition-colors"
+                    title="ইউনিট পরিবর্তন করুন - পরিবর্তন করলে সকল তথ্য স্বয়ংক্রিয়ভাবে রিফ্রেশ হবে"
+                  >
+                    <option value="ALL" className="bg-[#131b2e] text-emerald-400 font-bold py-1">
+                      🌐 সকল ইউনিট (All Units)
+                    </option>
+                    {units.map((u) => (
+                      <option key={u.id} value={String(u.id)} className="bg-[#131b2e] text-slate-100 py-1 font-semibold">
+                        🏭 {u.name} {u.code ? `(${u.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="text-slate-400 pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" />
+                </div>
+              ) : (
+                <div className="text-xs font-bold text-sky-400 truncate max-w-[150px]" title={selectedUnit?.name || 'অ্যাসাইনকৃত ইউনিট'}>
+                  {selectedUnit ? selectedUnit.name : 'ইউনিট নির্দিষ্ট নেই'}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-4">
             {user?.isMockMode && (
               <div 
@@ -117,9 +172,9 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Content Wrapper Slot */}
+        {/* Content Wrapper Slot with key for automatic remounting and refresh on unit switch */}
         <div className="flex-1 p-6 overflow-y-auto">
-          <Outlet />
+          <Outlet key={unitRefreshKey} context={{ selectedUnitId, selectedUnit, unitRefreshKey }} />
         </div>
       </main>
     </div>

@@ -351,7 +351,13 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
           </div>
           <div className="flex flex-col">
             <div className="text-slate-200 text-sm font-semibold">{user?.name || 'ব্যবহারকারী'}</div>
-            <div className="text-slate-500 text-xs mt-0.5 uppercase tracking-wider">{user?.role || 'User'}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 text-xs uppercase tracking-wider">{user?.role || 'User'}</span>
+              <span className="text-slate-600 text-[10px]">•</span>
+              <span className="text-sky-400 text-[11px] font-medium truncate max-w-[120px]" title={user?.role === 'admin' ? 'সকল ইউনিট (All Units)' : (user?.unit?.name || 'সকল ইউনিট')}>
+                {user?.role === 'admin' ? 'সব ইউনিট' : (user?.unit?.name || 'সকল ইউনিট')}
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -79,6 +79,13 @@ exports.getAll = async (req, res) => {
       where.color = { color_name: { equals: color_name.trim() } };
     }
 
+    if (req.unitId) {
+      where.OR = [
+        { unit_id: req.unitId },
+        { section: { unit_id: req.unitId } }
+      ];
+    }
+
     const list = await prisma.production.findMany({
       where,
       include: {
@@ -155,6 +162,7 @@ exports.create = async (req, res) => {
         const rawCard = String(item.card_no).trim();
         const empId = empCardToIdMap.get(rawCard.toLowerCase()) || (parseInt(rawCard) || rawCard);
         return {
+          unit_id: req.unitId || null,
           section_id: parseInt(section_id),
           style_id: parseInt(style_id),
           process_id: parseInt(process_id),

@@ -6,6 +6,39 @@ exports.getStats = async (req, res) => {
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
+    const unitFilter = req.unitId ? {
+      OR: [
+        { unit_id: req.unitId },
+        { section: { unit_id: req.unitId } }
+      ]
+    } : null;
+
+    const prodTodayWhere = {
+      production_date: {
+        gte: startOfToday,
+        lte: endOfToday
+      }
+    };
+    if (unitFilter) {
+      prodTodayWhere.AND = [unitFilter];
+    }
+
+    const empWhere = { status: 'Active' };
+    if (unitFilter) {
+      empWhere.AND = [unitFilter];
+    }
+
+    const prodYearWhere = {
+      production_date: {
+        gte: new Date(today.getFullYear(), 0, 1)
+      }
+    };
+    if (unitFilter) {
+      prodYearWhere.AND = [unitFilter];
+    }
+
+    const prodRecentWhere = unitFilter || {};
+
     const [
       totalBuyers,
       totalStyles,
@@ -20,15 +53,11 @@ exports.getStats = async (req, res) => {
       prisma.style.count(),
       prisma.production.aggregate({
         _sum: { quantity: true },
-        where: {
-          production_date: {
-            gte: startOfToday,
-            lte: endOfToday
-          }
-        }
+        where: prodTodayWhere
       }),
-      prisma.employee.count({ where: { status: 'Active' } }),
+      prisma.employee.count({ where: empWhere }),
       prisma.production.findMany({
+        where: prodRecentWhere,
         take: 5,
         orderBy: { id: 'desc' },
         include: {
@@ -44,11 +73,7 @@ exports.getStats = async (req, res) => {
         }
       }),
       prisma.production.findMany({
-        where: {
-          production_date: {
-            gte: new Date(today.getFullYear(), 0, 1)
-          }
-        },
+        where: prodYearWhere,
         include: {
           style: {
             include: {

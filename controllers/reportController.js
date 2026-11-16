@@ -25,6 +25,20 @@ exports.getEmployeeReport = async (req, res) => {
       ];
     }
 
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
+    }
+
     const employees = await prisma.employee.findMany({
       where,
       include: {
@@ -85,6 +99,20 @@ exports.generateEmployeePdf = async (req, res) => {
         { card_no: { contains: q } },
         { designation: { contains: q } }
       ];
+    }
+
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
     }
 
     const employees = await prisma.employee.findMany({

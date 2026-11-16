@@ -8,12 +8,23 @@ exports.getAll = async (req, res) => {
     if (search && search.trim() !== '') {
       const q = search.trim();
       where.OR = [
-        { section: { name: { contains: q } } },
         { buyer: { name: { contains: q } } },
-        { style: { style_no: { contains: q } } },
-        { process: { process_name: { contains: q } } },
-        { color: { color_name: { contains: q } } }
+        { style: { style_no: { contains: q } } }
       ];
+    }
+
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
     }
 
     const takeLimit = limit ? parseInt(limit) : (search ? undefined : 50);
@@ -22,14 +33,15 @@ exports.getAll = async (req, res) => {
       where,
       take: takeLimit,
       include: {
-        section: { select: { name: true } },
         buyer: { select: { name: true } },
         style: { select: { style_no: true } },
+        section: { select: { name: true } },
         process: { select: { process_name: true } },
         color: { select: { color_name: true } }
       },
       orderBy: { id: 'desc' }
     });
+
     const result = list.map(bo => ({
       ...bo,
       section_name: bo.section?.name || null,
@@ -50,24 +62,26 @@ exports.getAll = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { section_id, buyer_id, style_id, process_id, color_id, order_quantity } = req.body;
+  const { buyer_id, style_id, order_quantity, section_id, process_id, color_id } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
-    const sId = parseInt(section_id);
+    if (!buyer_id || !style_id || !order_quantity) {
+      return res.status(400).json({ message: 'বায়ার, স্টাইল এবং অর্ডার কোয়ান্টিটি প্রদান করা বাধ্যতামূলক!' });
+    }
+
     const bId = parseInt(buyer_id);
     const stId = parseInt(style_id);
-    const pId = parseInt(process_id);
+    const sId = section_id ? parseInt(section_id) : null;
+    const pId = process_id ? parseInt(process_id) : null;
     const cId = color_id ? parseInt(color_id) : null;
 
-    // Check duplicate order entry
+    // Check duplicate order entry for buyer & style (and unit)
     const whereClause = {
-      section_id: sId,
       buyer_id: bId,
-      style_id: stId,
-      process_id: pId
+      style_id: stId
     };
-    if (cId) {
-      whereClause.color_id = cId;
+    if (req.unitId) {
+      whereClause.unit_id = req.unitId;
     }
 
     const existing = await prisma.buyerOrder.findFirst({
@@ -76,15 +90,16 @@ exports.create = async (req, res) => {
 
     if (existing) {
       return res.status(400).json({ 
-        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ার এবং স্টাইলের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
       });
     }
 
     const order = await prisma.buyerOrder.create({
       data: {
-        section_id: sId,
+        unit_id: req.unitId || null,
         buyer_id: bId,
         style_id: stId,
+        section_id: sId,
         process_id: pId,
         color_id: cId,
         order_quantity: parseInt(order_quantity),
@@ -100,26 +115,28 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { section_id, buyer_id, style_id, process_id, color_id, order_quantity } = req.body;
+  const { buyer_id, style_id, order_quantity, section_id, process_id, color_id } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
     const orderId = parseInt(id);
-    const sId = parseInt(section_id);
+    if (!buyer_id || !style_id || !order_quantity) {
+      return res.status(400).json({ message: 'বায়ার, স্টাইল এবং অর্ডার কোয়ান্টিটি প্রদান করা বাধ্যতামূলক!' });
+    }
+
     const bId = parseInt(buyer_id);
     const stId = parseInt(style_id);
-    const pId = parseInt(process_id);
+    const sId = section_id ? parseInt(section_id) : null;
+    const pId = process_id ? parseInt(process_id) : null;
     const cId = color_id ? parseInt(color_id) : null;
 
     // Check duplicate order entry excluding current record
     const whereClause = {
-      section_id: sId,
       buyer_id: bId,
       style_id: stId,
-      process_id: pId,
       NOT: { id: orderId }
     };
-    if (cId) {
-      whereClause.color_id = cId;
+    if (req.unitId) {
+      whereClause.unit_id = req.unitId;
     }
 
     const existing = await prisma.buyerOrder.findFirst({
@@ -128,16 +145,16 @@ exports.update = async (req, res) => {
 
     if (existing) {
       return res.status(400).json({ 
-        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ার এবং স্টাইলের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
       });
     }
 
     const order = await prisma.buyerOrder.update({
       where: { id: orderId },
       data: {
-        section_id: sId,
         buyer_id: bId,
         style_id: stId,
+        section_id: sId,
         process_id: pId,
         color_id: cId,
         order_quantity: parseInt(order_quantity),

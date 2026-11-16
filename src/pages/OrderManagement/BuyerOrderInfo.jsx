@@ -106,17 +106,13 @@ function SearchableSelect({
 
 export default function BuyerOrderInfo({ token }) {
   const [orders, setOrders] = useState([]);
-  const [sections, setSections] = useState([]);
   const [buyers, setBuyers] = useState([]);
   const [styles, setStyles] = useState([]);
-  const [processes, setProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form Fields
-  const [sectionId, setSectionId] = useState('');
+  // Form Fields (Section and Process removed as requested)
   const [buyerId, setBuyerId] = useState('');
   const [styleId, setStyleId] = useState('');
-  const [processId, setProcessId] = useState('');
   const [orderQuantity, setOrderQuantity] = useState('');
 
   const [editingId, setEditingId] = useState(null);
@@ -137,20 +133,9 @@ export default function BuyerOrderInfo({ token }) {
 
   useEffect(() => {
     fetchOrders();
-    fetchSections();
     fetchBuyers();
     fetchStyles();
-    fetchProcesses();
   }, []);
-
-  const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setSections(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error fetching sections:', err));
-  };
 
   const fetchBuyers = () => {
     fetch('http://localhost:5000/api/buyers', {
@@ -168,15 +153,6 @@ export default function BuyerOrderInfo({ token }) {
       .then(res => res.json())
       .then(data => setStyles(Array.isArray(data) ? data : []))
       .catch(err => console.error('Error fetching styles:', err));
-  };
-
-  const fetchProcesses = () => {
-    fetch('http://localhost:5000/api/processes', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setProcesses(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error fetching processes:', err));
   };
 
   const fetchOrders = (search = '') => {
@@ -224,39 +200,33 @@ export default function BuyerOrderInfo({ token }) {
     e.preventDefault();
     setFormError('');
 
-    if (!sectionId || !buyerId || !styleId || !processId || !orderQuantity) {
-      const errMsg = 'দয়া করে সকল প্রয়োজনীয় তথ্য ফিলআপ করুন!';
+    if (!buyerId || !styleId || !orderQuantity) {
+      const errMsg = 'দয়া করে বায়ার, স্টাইল ও অর্ডার কোয়ান্টিটি পূরণ করুন!';
       setFormError(errMsg);
       toast.error(errMsg);
       return;
     }
 
-    const sId = parseInt(sectionId);
     const bId = parseInt(buyerId);
     const stId = parseInt(styleId);
-    const pId = parseInt(processId);
 
-    // Front-end duplicate check with type-safe string comparison
+    // Front-end duplicate check for buyer + style
     const isDup = orders.some(item =>
-      String(item.section_id) === String(sId) &&
       String(item.buyer_id) === String(bId) &&
       String(item.style_id) === String(stId) &&
-      String(item.process_id) === String(pId) &&
       (editingId === null || String(item.id) !== String(editingId))
     );
 
     if (isDup) {
-      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।';
+      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই বায়ার এবং স্টাইলের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।';
       setFormError(dupMsg);
       toast.error(dupMsg);
       return;
     }
 
     const payload = {
-      section_id: sId,
       buyer_id: bId,
       style_id: stId,
-      process_id: pId,
       order_quantity: parseInt(orderQuantity)
     };
 
@@ -315,10 +285,8 @@ export default function BuyerOrderInfo({ token }) {
   const handleEdit = (item) => {
     setEditingId(item.id);
     setFormError('');
-    setSectionId(item.section_id);
     setBuyerId(item.buyer_id);
     setStyleId(item.style_id);
-    setProcessId(item.process_id);
     setOrderQuantity(item.order_quantity);
   };
 
@@ -348,10 +316,8 @@ export default function BuyerOrderInfo({ token }) {
   };
 
   const resetForm = () => {
-    setSectionId('');
     setBuyerId('');
     setStyleId('');
-    setProcessId('');
     setOrderQuantity('');
   };
 
@@ -365,11 +331,6 @@ export default function BuyerOrderInfo({ token }) {
     label: st.style_no,
     sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
   })) || [];
-
-  // Section + Style wise process load
-  const formFilteredProcesses = (sectionId && styleId)
-    ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
-    : [];
 
   // Order Increase Handlers
   const handleOpenIncreaseModal = (item) => {
@@ -421,7 +382,7 @@ export default function BuyerOrderInfo({ token }) {
   const handleSaveRewindingRequest = (e) => {
     e.preventDefault();
     if (!rewindingConfirmed) {
-      toast.error('আবেদন পাঠানোর পূর্বে চেকক্স নিশ্চিত করুন!');
+      toast.error('আবেদন পাঠানোর পূর্বে চেকবক্স নিশ্চিত করুন!');
       return;
     }
     if (!rewindingQtyInput || parseInt(rewindingQtyInput) <= 0) {
@@ -474,24 +435,6 @@ export default function BuyerOrderInfo({ token }) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={sectionId}
-                onChange={(e) => {
-                  setSectionId(e.target.value);
-                  setProcessId('');
-                }}
-                required
-              >
-                <option value="">-- সিলেক্ট করুন --</option>
-                {sections.map(sec => (
-                  <option key={sec.id} value={sec.id}>{sec.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">বায়ার *</label>
               <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
@@ -503,7 +446,6 @@ export default function BuyerOrderInfo({ token }) {
                     const currentStyle = styles.find(st => String(st.id) === String(styleId));
                     if (currentStyle && String(currentStyle.buyer_id) !== String(selectedBuyerId)) {
                       setStyleId('');
-                      setProcessId('');
                     }
                   }
                 }}
@@ -523,7 +465,6 @@ export default function BuyerOrderInfo({ token }) {
                 value={styleId}
                 onChange={(selectedId) => {
                   setStyleId(selectedId);
-                  setProcessId('');
                   if (selectedId && !buyerId) {
                     const currentStyle = styles.find(st => String(st.id) === String(selectedId));
                     if (currentStyle && currentStyle.buyer_id) {
@@ -534,32 +475,6 @@ export default function BuyerOrderInfo({ token }) {
                 placeholder="-- সিলেক্ট করুন --"
                 required
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">প্রসেস *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                value={processId}
-                onChange={(e) => {
-                  setProcessId(e.target.value);
-                }}
-                required
-                disabled={!sectionId || !styleId}
-              >
-                <option value="">
-                  {!sectionId
-                    ? "-- প্রথমে সেকশন সিলেক্ট করুন --"
-                    : !styleId
-                      ? "-- প্রথমে স্টাইল সিলেক্ট করুন --"
-                      : formFilteredProcesses.length === 0
-                        ? "এই সেকশন ও স্টাইলের জন্য কোনো প্রসেস পাওয়া যায়নি"
-                        : "-- প্রসেস সিলেক্ট করুন --"}
-                </option>
-                {formFilteredProcesses.map(p => (
-                  <option key={p.id} value={p.id}>{p.process_name}</option>
-                ))}
-              </select>
             </div>
 
             <div>
@@ -612,7 +527,7 @@ export default function BuyerOrderInfo({ token }) {
                 <input
                   type="text"
                   className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                  placeholder="সেকশন, বায়ার, স্টাইল, প্রসেস..."
+                  placeholder="বায়ার, স্টাইল নম্বর দিয়ে সার্চ..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -646,10 +561,8 @@ export default function BuyerOrderInfo({ token }) {
                 <thead>
                   <tr className="bg-[#131b2e] border-b border-white/6">
                     <th className="py-3.5 px-4 text-slate-300 font-semibold">ক্রমিক</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">সেকশন</th>
                     <th className="py-3.5 px-4 text-slate-300 font-semibold">বায়ার</th>
                     <th className="py-3.5 px-4 text-slate-300 font-semibold">স্টাইল নম্বর</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">প্রসেস</th>
                     <th className="py-3.5 px-4 text-slate-300 font-semibold">অর্ডার কোয়ান্টিটি</th>
                     <th className="py-3.5 px-4 text-slate-300 font-semibold text-emerald-400">ইয়ার্ন রিসিভড</th>
                     <th className="py-3.5 px-4 text-sky-400 font-semibold text-center">অর্ডার বৃদ্ধি</th>
@@ -660,7 +573,7 @@ export default function BuyerOrderInfo({ token }) {
                 <tbody className="divide-y divide-white/6">
                   {orders.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="text-center py-10 text-slate-400 space-y-2">
+                      <td colSpan="8" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন বায়ার অর্ডার খুঁজে পাওয়া যায়নি</div>
                         {activeSearch && (
                           <button
@@ -677,15 +590,11 @@ export default function BuyerOrderInfo({ token }) {
                     orders.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>
-                        <td className="py-3.5 px-4 text-slate-300">{item.buyer_name || '—'}</td>
+                        <td className="py-3.5 px-4 text-slate-300 font-semibold">{item.buyer_name || '—'}</td>
                         <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">
                             {item.style_no || '—'}
                           </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-300">
-                          {item.process_name || '—'}
                         </td>
                         <td className="py-3.5 px-4 text-slate-100 font-bold">{Number(item.order_quantity).toLocaleString()} pcs</td>
                         <td className="py-3.5 px-4 font-bold text-emerald-400">
@@ -709,29 +618,29 @@ export default function BuyerOrderInfo({ token }) {
                           <button
                             onClick={() => handleOpenRewindingModal(item)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-semibold transition-colors cursor-pointer"
-                            title="রি-ওয়াইন্ডিং কোয়ান্টিটি এন্ট্রি করুন"
+                            title="রি-ওয়াইন্ডিং আবেদন জানান"
                           >
                             <RefreshCw size={13} />
                             <span>রি-উইন্ডিং</span>
                           </button>
                         </td>
 
-                        {/* Action Column */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex gap-2 justify-center">
+                        {/* Actions */}
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleEdit(item)}
-                              className="inline-flex items-center justify-center w-8 h-8 border border-white/6 rounded-lg text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
+                              className="p-1.5 hover:bg-sky-500/10 text-slate-400 hover:text-sky-400 rounded-lg transition-colors cursor-pointer"
                               title="সম্পাদনা করুন"
                             >
-                              <Edit size={14} />
+                              <Edit size={16} />
                             </button>
                             <button
                               onClick={() => handleDelete(item.id)}
-                              className="inline-flex items-center justify-center w-8 h-8 border border-red-500/10 rounded-lg text-red-400 hover:bg-red-500/5 transition-colors cursor-pointer"
-                              title="ডিলিট করুন"
+                              className="p-1.5 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
+                              title="মুছে ফেলুন"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </td>
@@ -765,7 +674,9 @@ export default function BuyerOrderInfo({ token }) {
             <div className="bg-[#0b0f19]/60 p-3.5 rounded-xl border border-white/5 space-y-1.5 text-xs text-slate-300">
               <div><strong>বায়ার:</strong> {selectedOrder.buyer_name}</div>
               <div><strong>স্টাইল:</strong> {selectedOrder.style_no}</div>
-              <div><strong>প্রসেস:</strong> {selectedOrder.process_name}</div>
+              {selectedOrder.process_name && (
+                <div><strong>প্রসেস:</strong> {selectedOrder.process_name}</div>
+              )}
               <div><strong>বর্তমান মোট অর্ডার কোয়ান্টিটি:</strong> <span className="text-sky-400 font-bold">{Number(selectedOrder.order_quantity).toLocaleString()} pcs</span></div>
             </div>
 
@@ -827,7 +738,9 @@ export default function BuyerOrderInfo({ token }) {
             <div className="bg-[#0b0f19]/60 p-3.5 rounded-xl border border-white/5 space-y-1.5 text-xs text-slate-300">
               <div><strong>বায়ার:</strong> {selectedOrder.buyer_name}</div>
               <div><strong>স্টাইল:</strong> {selectedOrder.style_no}</div>
-              <div><strong>প্রসেস:</strong> {selectedOrder.process_name}</div>
+              {selectedOrder.process_name && (
+                <div><strong>প্রসেস:</strong> {selectedOrder.process_name}</div>
+              )}
               <div><strong>বর্তমান মূল কোয়ান্টিটি:</strong> <span className="text-amber-400 font-bold">{Number(selectedOrder.order_quantity).toLocaleString()} pcs</span></div>
             </div>
 

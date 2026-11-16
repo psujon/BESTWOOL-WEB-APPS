@@ -2,7 +2,15 @@ const { prisma } = require('../db');
 
 exports.getAll = async (req, res) => {
   try {
+    const where = {};
+    if (req.unitId) {
+      where.OR = [
+        { unit_id: req.unitId },
+        { section: { unit_id: req.unitId } }
+      ];
+    }
     const blocks = await prisma.block.findMany({
+      where,
       orderBy: { id: 'desc' }
     });
     res.json(blocks);
@@ -13,8 +21,9 @@ exports.getAll = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { name, code, status } = req.body;
+  const { name, code, status, unit_id } = req.body;
   const userId = req.user ? req.user.id : null;
+  const assignedUnitId = unit_id ? parseInt(unit_id) : (req.unitId || null);
 
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'ব্লক/লাইনের নাম প্রদান করা বাধ্যতামূলক!' });
@@ -25,6 +34,7 @@ exports.create = async (req, res) => {
       data: {
         name: name.trim(),
         code: code ? code.trim() : null,
+        unit_id: assignedUnitId,
         status: status || 'Active',
         processed_by: userId,
         processed_date: new Date()

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Edit, Trash2, XCircle, Building2 } from 'lucide-react';
+import { Layers, Edit, Trash2, XCircle, Building2, Warehouse } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useUnit } from '../../context/UnitContext';
 
 export default function Section({ token }) {
+  const { units, selectedUnitId } = useUnit();
   const [sections, setSections] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,6 +12,7 @@ export default function Section({ token }) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [unitId, setUnitId] = useState(selectedUnitId !== 'ALL' ? selectedUnitId : '');
   const [status, setStatus] = useState('Active');
 
   const [editingId, setEditingId] = useState(null);
@@ -60,6 +63,7 @@ export default function Section({ token }) {
       name: name.trim(),
       code: code.trim(),
       department_id: departmentId ? parseInt(departmentId) : null,
+      unit_id: unitId ? parseInt(unitId) : null,
       status
     };
 
@@ -111,6 +115,7 @@ export default function Section({ token }) {
     setName('');
     setCode('');
     setDepartmentId('');
+    setUnitId(selectedUnitId !== 'ALL' ? selectedUnitId : '');
     setStatus('Active');
   };
 
@@ -119,6 +124,7 @@ export default function Section({ token }) {
     setName(sec.name || '');
     setCode(sec.code || '');
     setDepartmentId(sec.department_id ? String(sec.department_id) : '');
+    setUnitId(sec.unit_id ? String(sec.unit_id) : '');
     setStatus(sec.status || 'Active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -225,6 +231,25 @@ export default function Section({ token }) {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Warehouse size={15} className="text-sky-400" />
+                <span>আওতাধীন ইউনিট (Unit)</span>
+              </label>
+              <select
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={unitId}
+                onChange={(e) => setUnitId(e.target.value)}
+              >
+                <option value="">-- ডিপার্টমেন্ট অনুসারে / সকল ইউনিট --</option>
+                {units.map((u) => (
+                  <option key={u.id} value={String(u.id)}>
+                    {u.name} {u.code ? `(${u.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্ট্যাটাস</label>
               <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
@@ -280,6 +305,7 @@ export default function Section({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold">কোড</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">সেকশন এর নাম</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">ডিপার্টমেন্ট</th>
+                    <th className="py-3 px-4 text-slate-300 font-semibold">ইউনিট</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অবস্থা</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
                   </tr>
@@ -287,7 +313,7 @@ export default function Section({ token }) {
                 <tbody className="divide-y divide-white/6">
                   {sections.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-10 text-slate-500">
+                      <td colSpan="7" className="text-center py-10 text-slate-500">
                         কোন সেকশন রেকর্ড পাওয়া যায়নি
                       </td>
                     </tr>
@@ -309,6 +335,16 @@ export default function Section({ token }) {
                             </span>
                           ) : (
                             <span className="text-slate-500 text-xs italic">কোন ডিপার্টমেন্ট নেই</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-300 text-xs">
+                          {sec.unit ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                              <Warehouse size={11} />
+                              {sec.unit.name}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 text-xs">সকল ইউনিট</span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-center">{getStatusBadge(sec.status)}</td>

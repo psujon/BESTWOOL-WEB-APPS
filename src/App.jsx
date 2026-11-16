@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Login from './components/Login';
 import DashboardLayout from './components/DashboardLayout';
+import { UnitProvider } from './context/UnitContext';
 import { Toaster } from 'react-hot-toast';
 
 
@@ -154,13 +155,15 @@ export default function App() {
         path="/dashboard" 
         element={
           token ? (
-            <DashboardLayout 
-              permissions={permissions} 
-              user={user} 
-              onLogout={handleLogout} 
-              sidebarOpen={sidebarOpen} 
-              setSidebarOpen={setSidebarOpen} 
-            />
+            <UnitProvider token={token} user={user}>
+              <DashboardLayout 
+                permissions={permissions} 
+                user={user} 
+                onLogout={handleLogout} 
+                sidebarOpen={sidebarOpen} 
+                setSidebarOpen={setSidebarOpen} 
+              />
+            </UnitProvider>
           ) : (
             <Navigate to="/login" replace />
           )
