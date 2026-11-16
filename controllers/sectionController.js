@@ -3,6 +3,11 @@ const { prisma } = require('../db');
 exports.getAll = async (req, res) => {
   try {
     const sections = await prisma.section.findMany({
+      include: {
+        department: {
+          select: { id: true, name: true, code: true }
+        }
+      },
       orderBy: { id: 'desc' }
     });
     res.json(sections);
@@ -12,7 +17,7 @@ exports.getAll = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { name, code, status } = req.body;
+  const { name, code, status, department_id } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
     const section = await prisma.section.create({
@@ -20,8 +25,14 @@ exports.create = async (req, res) => {
         name, 
         code, 
         status: status || 'Active',
+        department_id: department_id ? parseInt(department_id) : null,
         processed_by: userId,
         processed_date: new Date()
+      },
+      include: {
+        department: {
+          select: { id: true, name: true, code: true }
+        }
       }
     });
     res.status(201).json(section);
@@ -32,7 +43,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { name, code, status } = req.body;
+  const { name, code, status, department_id } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
     const section = await prisma.section.update({
@@ -41,8 +52,14 @@ exports.update = async (req, res) => {
         name, 
         code, 
         status,
+        department_id: department_id ? parseInt(department_id) : null,
         processed_by: userId,
         processed_date: new Date()
+      },
+      include: {
+        department: {
+          select: { id: true, name: true, code: true }
+        }
       }
     });
     res.json(section);

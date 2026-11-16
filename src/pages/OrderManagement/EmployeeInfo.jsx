@@ -13,6 +13,7 @@ const getTodayDateString = () => {
 export default function EmployeeInfo({ token }) {
   const [employees, setEmployees] = useState([]);
   const [sections, setSections] = useState([]);
+  const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form Fields
@@ -21,6 +22,7 @@ export default function EmployeeInfo({ token }) {
   const [designation, setDesignation] = useState('');
   const [joinDate, setJoinDate] = useState(getTodayDateString());
   const [sectionId, setSectionId] = useState('');
+  const [blockId, setBlockId] = useState('');
 
   const [editingId, setEditingId] = useState(null);
 
@@ -40,7 +42,8 @@ export default function EmployeeInfo({ token }) {
       (emp.card_no && emp.card_no.toLowerCase().includes(q)) ||
       (emp.name && emp.name.toLowerCase().includes(q)) ||
       (emp.designation && emp.designation.toLowerCase().includes(q)) ||
-      (emp.section_name && emp.section_name.toLowerCase().includes(q))
+      (emp.section_name && emp.section_name.toLowerCase().includes(q)) ||
+      (emp.block_name && emp.block_name.toLowerCase().includes(q))
     );
   });
 
@@ -101,6 +104,7 @@ export default function EmployeeInfo({ token }) {
   useEffect(() => {
     fetchEmployees();
     fetchSections();
+    fetchBlocks();
   }, []);
 
   const fetchSections = () => {
@@ -110,6 +114,15 @@ export default function EmployeeInfo({ token }) {
       .then(res => res.json())
       .then(data => setSections(Array.isArray(data) ? data : []))
       .catch(err => console.error('Error fetching sections:', err));
+  };
+
+  const fetchBlocks = () => {
+    fetch('http://localhost:5000/api/blocks', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setBlocks(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Error fetching blocks:', err));
   };
 
   const fetchEmployees = () => {
@@ -131,8 +144,8 @@ export default function EmployeeInfo({ token }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!cardNo || !name || !designation || !joinDate || !sectionId) {
-      toast.error('দয়া করে কার্ড নং, নাম, পদবী, জয়েন ডেট ও সেকশন পূরণ করুন!');
+    if (!cardNo || !name || !designation || !joinDate || !sectionId || !blockId) {
+      toast.error('দয়া করে কার্ড নং, নাম, পদবী, জয়েন ডেট, সেকশন ও ব্লক/লাইন পূরণ করুন!');
       return;
     }
 
@@ -141,7 +154,8 @@ export default function EmployeeInfo({ token }) {
       name,
       designation,
       join_date: joinDate,
-      section_id: parseInt(sectionId)
+      section_id: parseInt(sectionId),
+      block_id: blockId ? parseInt(blockId) : null
     };
 
     if (editingId !== null) {
@@ -194,6 +208,7 @@ export default function EmployeeInfo({ token }) {
     setDesignation('');
     setJoinDate(getTodayDateString());
     setSectionId('');
+    setBlockId('');
   };
 
   const handleEdit = (item) => {
@@ -202,6 +217,7 @@ export default function EmployeeInfo({ token }) {
     setName(item.name || '');
     setDesignation(item.designation || '');
     setSectionId(item.section_id || '');
+    setBlockId(item.block_id || '');
 
     if (item.join_date) {
       const dbDate = new Date(item.join_date);
@@ -309,7 +325,22 @@ export default function EmployeeInfo({ token }) {
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">ব্লক / লাইন (Block) *</label>
+              <select
+                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                value={blockId}
+                onChange={(e) => setBlockId(e.target.value)}
+                required
+              >
+                <option value="">Select Block / Line</option>
+                {blocks?.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
             </div>
@@ -358,7 +389,7 @@ export default function EmployeeInfo({ token }) {
               <input
                 type="text"
                 className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="কার্ড নং, নাম, পদবী বা সেকশন..."
+                placeholder="কার্ড নং, নাম, পদবী, সেকশন বা ব্লক..."
                 value={tableSearchQuery}
                 onChange={(e) => setTableSearchQuery(e.target.value)}
               />
@@ -368,7 +399,7 @@ export default function EmployeeInfo({ token }) {
                   type="button"
                   onClick={() => setTableSearchQuery('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                  title="সার্চ রিসিট করুন"
+                  title="সার্চ রিসেট করুন"
                 >
                   <XCircle size={14} />
                 </button>
@@ -388,6 +419,7 @@ export default function EmployeeInfo({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold">নাম</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">পদবী</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">সেকশন</th>
+                    <th className="py-3 px-4 text-slate-300 font-semibold">ব্লক / লাইন</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">জয়েন ডেট</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
                   </tr>
@@ -395,7 +427,7 @@ export default function EmployeeInfo({ token }) {
                 <tbody className="divide-y divide-white/6">
                   {filteredEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-10 text-slate-400 space-y-2">
+                      <td colSpan="8" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন ইমপ্লয়ী রেকর্ড খুঁজে পাওয়া যায়নি</div>
                         {tableSearchQuery && (
                           <button
@@ -420,6 +452,7 @@ export default function EmployeeInfo({ token }) {
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{emp.name}</td>
                         <td className="py-3.5 px-4 text-slate-300">{emp.designation}</td>
                         <td className="py-3.5 px-4 text-sky-400 font-medium">{emp.section_name || '—'}</td>
+                        <td className="py-3.5 px-4 text-slate-300">{emp.block_name || '—'}</td>
                         <td className="py-3.5 px-4 text-slate-400">
                           {emp.join_date ? new Date(emp.join_date).toLocaleDateString() : '—'}
                         </td>

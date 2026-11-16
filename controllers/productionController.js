@@ -1,13 +1,59 @@
 const { prisma } = require('../db');
 
 exports.getAll = async (req, res) => {
-  const { section_name, style_no, process_name, color_name, card_no, from_date, to_date } = req.query;
+  const { section_name, block_name, style_no, process_name, color_name, card_no, from_date, to_date } = req.query;
 
   try {
+    const [employees, users] = await Promise.all([
+      prisma.employee.findMany({
+        select: {
+          id: true,
+          card_no: true,
+          name: true,
+          block_id: true,
+          block: { select: { id: true, name: true, code: true } }
+        }
+      }),
+      prisma.user.findMany({ select: { id: true, name: true, username: true } })
+    ]);
+
+    const empByIdMap = new Map(employees.map(e => [String(e.id), e]));
+    const empByCardMap = new Map(employees.map(e => [e.card_no.trim().toLowerCase(), e]));
+
     const where = {};
 
     if (card_no && card_no.trim() !== '') {
-      where.card_no = { contains: card_no.trim() };
+      const q = card_no.trim().toLowerCase();
+      const matchedEmpIds = employees
+        .filter(e => e.card_no.toLowerCase().includes(q) || e.name.toLowerCase().includes(q) || String(e.id) === q)
+        .map(e => String(e.id));
+
+      if (matchedEmpIds.length > 0) {
+        where.card_no = { in: [...matchedEmpIds, q] };
+      } else {
+        where.card_no = { contains: q };
+      }
+    }
+
+    if (block_name && block_name.trim() !== '') {
+      const qBlock = block_name.trim().toLowerCase();
+      const matchedEmpIdsForBlock = employees
+        .filter(e => e.block && (e.block.name.toLowerCase() === qBlock || e.block.name.toLowerCase().includes(qBlock)))
+        .map(e => String(e.id));
+
+      if (matchedEmpIdsForBlock.length > 0) {
+        if (where.card_no) {
+          if (where.card_no.in) {
+            where.card_no.in = where.card_no.in.filter(id => matchedEmpIdsForBlock.includes(id));
+          } else {
+            where.card_no = { in: matchedEmpIdsForBlock };
+          }
+        } else {
+          where.card_no = { in: matchedEmpIdsForBlock };
+        }
+      } else {
+        where.card_no = { in: ['__none__'] };
+      }
     }
 
     if (from_date || to_date) {
@@ -33,34 +79,38 @@ exports.getAll = async (req, res) => {
       where.color = { color_name: { equals: color_name.trim() } };
     }
 
-    const [list, users] = await Promise.all([
-      prisma.production.findMany({
-        where,
-        include: {
-          section: { select: { name: true } },
-          style: { select: { style_no: true } },
-          process: { select: { process_name: true } },
-          color: { select: { color_name: true } }
-        },
-        orderBy: { id: 'desc' }
-      }),
-      prisma.user.findMany({ select: { id: true, name: true, username: true } })
-    ]);
+    const list = await prisma.production.findMany({
+      where,
+      include: {
+        section: { select: { name: true } },
+        style: { select: { style_no: true } },
+        process: { select: { process_name: true } },
+        color: { select: { color_name: true } }
+      },
+      orderBy: { id: 'desc' }
+    });
 
     const userMap = new Map(users.map(u => [u.id, u.name || u.username]));
 
-    const result = list.map(p => ({
-      ...p,
-      section_name: p.section?.name || null,
-      style_no: p.style?.style_no || null,
-      process_name: p.process?.process_name || null,
-      color_name: p.color?.color_name || null,
-      processed_by_name: p.processed_by ? (userMap.get(p.processed_by) || `User #${p.processed_by}`) : '—',
-      section: undefined,
-      style: undefined,
-      process: undefined,
-      color: undefined
-    }));
+    const result = list.map(p => {
+      const emp = empByIdMap.get(String(p.card_no)) || empByCardMap.get(String(p.card_no).toLowerCase());
+      return {
+        ...p,
+        card_no: p.card_no,
+        display_card_no: emp ? emp.card_no : p.card_no,
+        emp_name: emp ? emp.name : null,
+        block_name: emp?.block?.name || null,
+        section_name: p.section?.name || null,
+        style_no: p.style?.style_no || null,
+        process_name: p.process?.process_name || null,
+        color_name: p.color?.color_name || null,
+        processed_by_name: p.processed_by ? (userMap.get(p.processed_by) || `User #${p.processed_by}`) : '—',
+        section: undefined,
+        style: undefined,
+        process: undefined,
+        color: undefined
+      };
+    });
 
     res.json(result);
   } catch (err) {
@@ -73,13 +123,26 @@ exports.create = async (req, res) => {
   const { section_id, style_id, process_id, color_id, production_date, items, card_no, quantity } = req.body;
   const userId = req.user ? req.user.id : null;
 
-  if (!section_id || !style_id || !process_id || !color_id || !production_date) {
-    return res.status(400).json({ message: 'সেকশন, স্টাইল, প্রসেস, কালার ও প্রোডাকশন ডেট পূরণ করা বাধ্যতামূলক!' });
+  if (!section_id || !style_id || !process_id || !production_date) {
+    return res.status(400).json({ message: 'সেকশন, স্টাইল, প্রসেস ও প্রোডাকশন ডেট পূরণ করা বাধ্যতামূলক!' });
   }
 
   const pDate = new Date(production_date);
+  const colId = color_id ? parseInt(color_id) : null;
 
   try {
+    const employees = await prisma.employee.findMany({
+      select: { id: true, card_no: true }
+    });
+
+    const empCardToIdMap = new Map();
+    employees.forEach(emp => {
+      if (emp.card_no) {
+        empCardToIdMap.set(emp.card_no.trim().toLowerCase(), emp.id);
+      }
+      empCardToIdMap.set(String(emp.id), emp.id);
+    });
+
     if (Array.isArray(items) && items.length > 0) {
       // Batch creation for multiple card entries
       const validItems = items.filter(item => item.card_no && parseInt(item.quantity) > 0);
@@ -88,17 +151,21 @@ exports.create = async (req, res) => {
         return res.status(400).json({ message: 'কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও কোয়ান্টিটি প্রয়োজন!' });
       }
 
-      const recordsData = validItems.map(item => ({
-        section_id: parseInt(section_id),
-        style_id: parseInt(style_id),
-        process_id: parseInt(process_id),
-        color_id: parseInt(color_id),
-        production_date: pDate,
-        card_no: item.card_no.trim(),
-        quantity: parseInt(item.quantity),
-        processed_by: userId,
-        processed_date: new Date()
-      }));
+      const recordsData = validItems.map(item => {
+        const rawCard = String(item.card_no).trim();
+        const empId = empCardToIdMap.get(rawCard.toLowerCase()) || (parseInt(rawCard) || rawCard);
+        return {
+          section_id: parseInt(section_id),
+          style_id: parseInt(style_id),
+          process_id: parseInt(process_id),
+          color_id: colId,
+          production_date: pDate,
+          card_no: String(empId),
+          quantity: parseInt(item.quantity),
+          processed_by: userId,
+          processed_date: new Date()
+        };
+      });
 
       await prisma.production.createMany({
         data: recordsData
@@ -109,15 +176,17 @@ exports.create = async (req, res) => {
         count: validItems.length
       });
     } else if (card_no && quantity) {
+      const rawCard = String(card_no).trim();
+      const empId = empCardToIdMap.get(rawCard.toLowerCase()) || (parseInt(rawCard) || rawCard);
       // Single card entry
       const created = await prisma.production.create({
         data: {
           section_id: parseInt(section_id),
           style_id: parseInt(style_id),
           process_id: parseInt(process_id),
-          color_id: parseInt(color_id),
+          color_id: colId,
           production_date: pDate,
-          card_no: card_no.trim(),
+          card_no: String(empId),
           quantity: parseInt(quantity),
           processed_by: userId,
           processed_date: new Date()

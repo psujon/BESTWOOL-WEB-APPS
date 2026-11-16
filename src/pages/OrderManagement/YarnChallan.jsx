@@ -83,9 +83,8 @@ function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
-                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
-                  }`}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{opt.label}</span>
                   {opt.sublabel && (
@@ -118,14 +117,12 @@ export default function YarnChallan({ token }) {
   const [sections, setSections] = useState([]);
   const [styles, setStyles] = useState([]);
   const [processes, setProcesses] = useState([]);
-  const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form Fields
   const [sectionId, setSectionId] = useState('');
   const [styleId, setStyleId] = useState('');
   const [processId, setProcessId] = useState('');
-  const [colorId, setColorId] = useState('');
   const [challanNo, setChallanNo] = useState('');
   const [gatePassNo, setGatePassNo] = useState('');
   const [challanDate, setChallanDate] = useState(getTodayDateString());
@@ -134,29 +131,14 @@ export default function YarnChallan({ token }) {
   const [editingId, setEditingId] = useState(null);
   const [formError, setFormError] = useState('');
 
-  // Table Search State
   const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredChallans = challans.filter(item => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      (item.section_name && item.section_name.toLowerCase().includes(q)) ||
-      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
-      (item.process_name && item.process_name.toLowerCase().includes(q)) ||
-      (item.color_name && item.color_name.toLowerCase().includes(q)) ||
-      (item.challan_no && item.challan_no.toLowerCase().includes(q)) ||
-      (item.gate_pass_no && item.gate_pass_no.toLowerCase().includes(q)) ||
-      (item.quantity && item.quantity.toString().includes(q))
-    );
-  });
+  const [activeSearch, setActiveSearch] = useState('');
 
   useEffect(() => {
     fetchChallans();
     fetchSections();
     fetchStyles();
     fetchProcesses();
-    fetchColors();
   }, []);
 
   const fetchSections = () => {
@@ -186,18 +168,16 @@ export default function YarnChallan({ token }) {
       .catch(err => console.error('Error fetching processes:', err));
   };
 
-  const fetchColors = () => {
-    fetch('http://localhost:5000/api/colors', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setColors(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error fetching colors:', err));
-  };
-
-  const fetchChallans = () => {
+  const fetchChallans = (search = '') => {
     setLoading(true);
-    fetch('http://localhost:5000/api/yarn-challans', {
+    let url = 'http://localhost:5000/api/yarn-challans';
+    if (search && search.trim() !== '') {
+      url += `?search=${encodeURIComponent(search.trim())}`;
+    } else {
+      url += '?limit=50';
+    }
+
+    fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -211,12 +191,30 @@ export default function YarnChallan({ token }) {
       });
   };
 
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    setActiveSearch(q);
+    fetchChallans(q);
+    if (q) {
+      toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
+    } else {
+      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+    }
+  };
+
+  const handleResetSearch = () => {
+    setSearchQuery('');
+    setActiveSearch('');
+    fetchChallans('');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setFormError('');
 
-    if (!sectionId || !styleId || !processId || !colorId || !quantity) {
-      const errMsg = 'দয়া করে সেকশন, স্টাইল, প্রসেস, কালার ও কোয়ানটিটি প্রদান করুন!';
+    if (!sectionId || !styleId || !processId || !quantity) {
+      const errMsg = 'দয়া করে সেকশন, স্টাইল, প্রসেস ও কোয়ানটিটি প্রদান করুন!';
       setFormError(errMsg);
       toast.error(errMsg);
       return;
@@ -226,7 +224,6 @@ export default function YarnChallan({ token }) {
       section_id: parseInt(sectionId),
       style_id: parseInt(styleId),
       process_id: parseInt(processId),
-      color_id: parseInt(colorId),
       challan_no: challanNo ? challanNo.trim() : null,
       gate_pass_no: gatePassNo ? gatePassNo.trim() : null,
       challan_date: challanDate || null,
@@ -254,7 +251,7 @@ export default function YarnChallan({ token }) {
           setEditingId(null);
           resetForm();
           setFormError('');
-          fetchChallans();
+          fetchChallans(activeSearch);
         })
         .catch(err => {
           setFormError(err.message);
@@ -280,7 +277,7 @@ export default function YarnChallan({ token }) {
           toast.success('ইয়ার্ন চালান সফলভাবে সংরক্ষণ করা হয়েছে!');
           resetForm();
           setFormError('');
-          fetchChallans();
+          fetchChallans(activeSearch);
         })
         .catch(err => {
           setFormError(err.message);
@@ -293,7 +290,6 @@ export default function YarnChallan({ token }) {
     setSectionId('');
     setStyleId('');
     setProcessId('');
-    setColorId('');
     setChallanNo('');
     setGatePassNo('');
     setChallanDate(getTodayDateString());
@@ -307,7 +303,6 @@ export default function YarnChallan({ token }) {
     setSectionId(item.section_id || '');
     setStyleId(item.style_id || '');
     setProcessId(item.process_id || '');
-    setColorId(item.color_id || '');
     setChallanNo(item.challan_no || '');
     setGatePassNo(item.gate_pass_no || '');
     setQuantity(item.quantity ? item.quantity.toString() : '');
@@ -341,7 +336,7 @@ export default function YarnChallan({ token }) {
         })
         .then(() => {
           toast.success('চালান সফলভাবে ডিলিট করা হয়েছে!');
-          fetchChallans();
+          fetchChallans(activeSearch);
           if (editingId === id) {
             handleCancelEdit();
           }
@@ -360,15 +355,6 @@ export default function YarnChallan({ token }) {
   // Section + Style wise process load
   const formFilteredProcesses = (sectionId && styleId)
     ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
-    : [];
-
-  // Process wise color load
-  const formFilteredColors = (sectionId && styleId && processId)
-    ? colors.filter(c =>
-        c.section_id === parseInt(sectionId) &&
-        c.style_id === parseInt(styleId) &&
-        c.process_id === parseInt(processId)
-      )
     : [];
 
   return (
@@ -398,13 +384,12 @@ export default function YarnChallan({ token }) {
                 onChange={(e) => {
                   setSectionId(e.target.value);
                   setProcessId('');
-                  setColorId('');
                 }}
                 required
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -417,7 +402,6 @@ export default function YarnChallan({ token }) {
                 onChange={(selectedId) => {
                   setStyleId(selectedId);
                   setProcessId('');
-                  setColorId('');
                 }}
                 placeholder="Select Style..."
                 required
@@ -431,7 +415,6 @@ export default function YarnChallan({ token }) {
                 value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
-                  setColorId('');
                 }}
                 required
                 disabled={!sectionId || !styleId}
@@ -440,37 +423,13 @@ export default function YarnChallan({ token }) {
                   {!sectionId
                     ? "First select a section"
                     : !styleId
-                    ? "First select a style"
-                    : formFilteredProcesses.length === 0
-                    ? "No processes found for this section & style"
-                    : "Select Process"}
+                      ? "First select a style"
+                      : formFilteredProcesses.length === 0
+                        ? "No processes found for this section & style"
+                        : "Select Process"}
                 </option>
                 {formFilteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                value={colorId}
-                onChange={(e) => setColorId(e.target.value)}
-                required
-                disabled={!sectionId || !styleId || !processId}
-              >
-                <option value="">
-                  {!sectionId || !styleId
-                    ? "First select section & style"
-                    : !processId
-                    ? "First select a process"
-                    : formFilteredColors.length === 0
-                    ? "No colors found for this process"
-                    : "Select Color"}
-                </option>
-                {formFilteredColors.map((c) => (
-                  <option key={c.id} value={c.id}>{c.color_name}</option>
                 ))}
               </select>
             </div>
@@ -545,35 +504,44 @@ export default function YarnChallan({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">ইয়ার্ন চালান তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {searchQuery ? `ফলাফল: ${filteredChallans.length} টি` : `মোট চালান: ${challans.length} টি`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${challans.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
               </span>
             </div>
 
-            {/* Real-time Yarn Challan Search Option */}
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="চালান নং, গেট পাস, সেকশন, স্টাইল..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                  title="সার্চ রিসেট করুন"
-                >
-                  <XCircle size={14} />
-                </button>
-              )}
-            </div>
+            {/* Direct Database Search Option with Search Button */}
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-60">
+                <input
+                  type="text"
+                  className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                  placeholder="চালান নং, গেট পাস, সেকশন, স্টাইল..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleResetSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                    title="সার্চ রিসেট করুন"
+                  >
+                    <XCircle size={14} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="bg-sky-500 hover:bg-sky-400 text-white font-medium px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-md shadow-sky-500/20"
+              >
+                <Search size={14} />
+                <span>সার্চ</span>
+              </button>
+            </form>
           </div>
 
           {loading ? (
-            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">ডাটাবেজ থেকে লোড হচ্ছে...</div>
           ) : (
             <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
@@ -583,7 +551,6 @@ export default function YarnChallan({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold">সেকশন</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">স্টাইল</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">প্রসেস</th>
-                    <th className="py-3 px-4 text-slate-300 font-semibold">কালার</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">চালান নং</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">গেট পাস নং</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">চালান ডেট</th>
@@ -592,14 +559,14 @@ export default function YarnChallan({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {filteredChallans.length === 0 ? (
+                  {challans.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="text-center py-10 text-slate-400 space-y-2">
+                      <td colSpan="9" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন চালান রেকর্ড খুঁজে পাওয়া যায়নি</div>
-                        {searchQuery && (
+                        {activeSearch && (
                           <button
                             type="button"
-                            onClick={() => setSearchQuery('')}
+                            onClick={handleResetSearch}
                             className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
                           >
                             সার্চ রিসেট করুন
@@ -608,7 +575,7 @@ export default function YarnChallan({ token }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredChallans.map((item, index) => (
+                    challans.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>
@@ -618,7 +585,6 @@ export default function YarnChallan({ token }) {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-slate-300">{item.process_name || '—'}</td>
-                        <td className="py-3.5 px-4 text-sky-400 font-semibold">{item.color_name || '—'}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{item.challan_no}</td>
                         <td className="py-3.5 px-4 text-slate-300">{item.gate_pass_no}</td>
                         <td className="py-3.5 px-4 text-slate-400">

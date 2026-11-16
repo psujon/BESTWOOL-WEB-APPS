@@ -83,9 +83,8 @@ function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
-                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
-                  }`}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{opt.label}</span>
                   {opt.sublabel && (
@@ -118,14 +117,12 @@ export default function PieceRate({ token }) {
   const [sections, setSections] = useState([]);
   const [styles, setStyles] = useState([]);
   const [processes, setProcesses] = useState([]);
-  const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form Fields
   const [sectionId, setSectionId] = useState('');
   const [styleId, setStyleId] = useState('');
   const [processId, setProcessId] = useState('');
-  const [colorId, setColorId] = useState('');
   const [rate, setRate] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(getTodayDateString());
 
@@ -142,7 +139,6 @@ export default function PieceRate({ token }) {
       (item.section_name && item.section_name.toLowerCase().includes(q)) ||
       (item.style_no && item.style_no.toLowerCase().includes(q)) ||
       (item.process_name && item.process_name.toLowerCase().includes(q)) ||
-      (item.color_name && item.color_name.toLowerCase().includes(q)) ||
       (item.rate && item.rate.toString().includes(q))
     );
   });
@@ -152,7 +148,6 @@ export default function PieceRate({ token }) {
     fetchSections();
     fetchStyles();
     fetchProcesses();
-    fetchColors();
   }, []);
 
   const fetchSections = () => {
@@ -182,15 +177,6 @@ export default function PieceRate({ token }) {
       .catch(err => console.error('Error fetching processes:', err));
   };
 
-  const fetchColors = () => {
-    fetch('http://localhost:5000/api/colors', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setColors(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error fetching colors:', err));
-  };
-
   const fetchRates = () => {
     setLoading(true);
     fetch('http://localhost:5000/api/piece-rates', {
@@ -211,7 +197,7 @@ export default function PieceRate({ token }) {
     e.preventDefault();
     setFormError('');
 
-    if (!sectionId || !styleId || !processId || !colorId || !rate || !effectiveDate) {
+    if (!sectionId || !styleId || !processId || !rate || !effectiveDate) {
       const errMsg = 'অনুগ্রহ করে সকল বাধ্যতাবোধক ঘর (Required fields) পূরণ করুন!';
       setFormError(errMsg);
       toast.error(errMsg);
@@ -221,19 +207,17 @@ export default function PieceRate({ token }) {
     const sId = parseInt(sectionId);
     const stId = parseInt(styleId);
     const pId = parseInt(processId);
-    const cId = parseInt(colorId);
 
     // Front-end duplicate check
     const isDup = rates.some(item =>
       item.section_id === sId &&
       item.style_id === stId &&
       item.process_id === pId &&
-      item.color_id === cId &&
       (editingId === null || item.id !== editingId)
     );
 
     if (isDup) {
-      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।';
+      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।';
       setFormError(dupMsg);
       toast.error(dupMsg);
       return;
@@ -243,7 +227,6 @@ export default function PieceRate({ token }) {
       section_id: sId,
       style_id: stId,
       process_id: pId,
-      color_id: cId,
       rate: parseFloat(rate),
       effective_date: effectiveDate
     };
@@ -281,7 +264,6 @@ export default function PieceRate({ token }) {
       setSectionId('');
       setStyleId('');
       setProcessId('');
-      setColorId('');
       setRate('');
       setEffectiveDate(getTodayDateString());
       setFormError('');
@@ -298,7 +280,6 @@ export default function PieceRate({ token }) {
     setSectionId(item.section_id || '');
     setStyleId(item.style_id || '');
     setProcessId(item.process_id || '');
-    setColorId(item.color_id || '');
     setRate(item.rate ? item.rate.toString() : '');
 
     if (item.effective_date) {
@@ -318,7 +299,6 @@ export default function PieceRate({ token }) {
     setSectionId('');
     setStyleId('');
     setProcessId('');
-    setColorId('');
     setRate('');
     setEffectiveDate(getTodayDateString());
   };
@@ -357,15 +337,6 @@ export default function PieceRate({ token }) {
     ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
     : [];
 
-  // Process wise color load
-  const formFilteredColors = (sectionId && styleId && processId)
-    ? colors.filter(c =>
-        c.section_id === parseInt(sectionId) &&
-        c.style_id === parseInt(styleId) &&
-        c.process_id === parseInt(processId)
-      )
-    : [];
-
   return (
     <div className="space-y-6">
 
@@ -393,13 +364,12 @@ export default function PieceRate({ token }) {
                 onChange={(e) => {
                   setSectionId(e.target.value);
                   setProcessId('');
-                  setColorId('');
                 }}
                 required
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -412,7 +382,6 @@ export default function PieceRate({ token }) {
                 onChange={(selectedId) => {
                   setStyleId(selectedId);
                   setProcessId('');
-                  setColorId('');
                 }}
                 placeholder="Select Style..."
                 required
@@ -426,7 +395,6 @@ export default function PieceRate({ token }) {
                 value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
-                  setColorId('');
                 }}
                 required
                 disabled={!sectionId || !styleId}
@@ -435,37 +403,13 @@ export default function PieceRate({ token }) {
                   {!sectionId
                     ? "First select a section"
                     : !styleId
-                    ? "First select a style"
-                    : formFilteredProcesses.length === 0
-                    ? "No processes found for this section & style"
-                    : "Select Process"}
+                      ? "First select a style"
+                      : formFilteredProcesses.length === 0
+                        ? "No processes found for this section & style"
+                        : "Select Process"}
                 </option>
                 {formFilteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                value={colorId}
-                onChange={(e) => setColorId(e.target.value)}
-                required
-                disabled={!sectionId || !styleId || !processId}
-              >
-                <option value="">
-                  {!sectionId || !styleId
-                    ? "First select section & style"
-                    : !processId
-                    ? "First select a process"
-                    : formFilteredColors.length === 0
-                    ? "No colors found for this process"
-                    : "Select Color"}
-                </option>
-                {formFilteredColors.map((c) => (
-                  <option key={c.id} value={c.id}>{c.color_name}</option>
                 ))}
               </select>
             </div>
@@ -527,7 +471,7 @@ export default function PieceRate({ token }) {
               <input
                 type="text"
                 className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="সেকশন, স্টাইল, প্রসেস, কালার বা রেট..."
+                placeholder="সেকশন, স্টাইল, প্রসেস বা রেট..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -556,7 +500,6 @@ export default function PieceRate({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold">সেকশন</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">স্টাইল নম্বর</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">প্রসেস</th>
-                    <th className="py-3 px-4 text-slate-300 font-semibold">রং (Color)</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">রেট</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">কার্যকর তারিখ</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
@@ -565,7 +508,7 @@ export default function PieceRate({ token }) {
                 <tbody className="divide-y divide-white/6">
                   {filteredRates.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-10 text-slate-400 space-y-2">
+                      <td colSpan="7" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন পিস রেট রেকর্ড খুঁজে পাওয়া যায়নি</div>
                         {searchQuery && (
                           <button
@@ -589,7 +532,6 @@ export default function PieceRate({ token }) {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-slate-300">{item.process_name || '—'}</td>
-                        <td className="py-3.5 px-4 text-sky-400 font-semibold">{item.color_name || '—'}</td>
                         <td className="py-3.5 px-4 text-emerald-400 font-bold">{Number(item.rate).toFixed(2)} BDT</td>
                         <td className="py-3.5 px-4 text-slate-450">{item.effective_date ? new Date(item.effective_date).toLocaleDateString() : '—'}</td>
                         <td className="py-3.5 px-4">

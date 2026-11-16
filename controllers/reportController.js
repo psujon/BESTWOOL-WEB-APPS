@@ -252,19 +252,28 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
+        process: { select: { process_name: true } }
       },
       orderBy: { id: 'desc' }
     });
 
     const firstRecord = list[0] || {};
-    const empCardNo = firstRecord.card_no || 'BH10040';
+    let empCardNo = firstRecord.card_no || '—';
+    let empName = '—';
 
-    let empName = 'Mst. Selina Parvin';
     if (firstRecord.card_no) {
-      const emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
-      if (emp && emp.name) empName = emp.name;
+      const emp = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { id: parseInt(firstRecord.card_no) || 0 },
+            { card_no: firstRecord.card_no }
+          ]
+        }
+      });
+      if (emp) {
+        if (emp.card_no) empCardNo = emp.card_no;
+        if (emp.name) empName = emp.name;
+      }
     }
 
     // Fetch target section name dynamically
@@ -278,17 +287,16 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
 
     const monthStr = startDate ? new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'July 2026';
 
-    // Group production entries by (Style, Process, Color) to show each unique combination ONCE with total quantity
+    // Group production entries by (Style, Process) to show each unique combination ONCE with total quantity
     const groupedMap = new Map();
 
     list.forEach(item => {
-      const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
+      const key = `${item.style_id}-${item.process_id}`;
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
           dateDay: item.production_date ? new Date(item.production_date).getDate() : '1',
           styleNo: item.style?.style_no || 'MEPI',
           processName: item.process?.process_name || '100% OR COTTON 2/40',
-          colorName: item.color?.color_name || 'BLACK',
           totalQuantity: 0
         });
       }
@@ -304,7 +312,6 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
         <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt;">${grp.dateDay}</td>
         <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt; font-weight: bold;">${grp.styleNo}</td>
         <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt;">${grp.processName}</td>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt;">${grp.colorName}</td>
         <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt;">${grp.totalQuantity.toFixed(2)}</td>
         <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; font-size: 8pt;"></td>
       </tr>
@@ -458,12 +465,11 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 15%; text-align: left;">DATE OF ISSUE</th>
-              <th style="width: 18%; text-align: left;">STYLE NO</th>
-              <th style="width: 27%; text-align: left;">TYPE</th>
-              <th style="width: 18%; text-align: left;">COLOR</th>
-              <th style="width: 10%; text-align: right;">QTY</th>
-              <th style="width: 12%; text-align: center;">REMARKS</th>
+              <th style="width: 18%; text-align: left;">DATE OF ISSUE</th>
+              <th style="width: 25%; text-align: left;">STYLE NO</th>
+              <th style="width: 35%; text-align: left;">PROCESS / TYPE</th>
+              <th style="width: 12%; text-align: right;">QTY</th>
+              <th style="width: 10%; text-align: center;">REMARKS</th>
             </tr>
           </thead>
           <tbody>
@@ -472,29 +478,12 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
                 <td style="border:1px solid #000; padding:4px;">1</td>
                 <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
                 <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BLACK</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px;"></td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:4px;">1</td>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BROWN ICE</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px;"></td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:4px;">1</td>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">ECRU</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
                 <td style="border:1px solid #000; padding:4px;"></td>
               </tr>
             `}
             <tr class="total-row">
-              <td colSpan="4" style="text-align: right; border-right: none; padding: 5px;">Total :</td>
+              <td colSpan="3" style="text-align: right; border-right: none; padding: 5px;">Total :</td>
               <td style="text-align: right; border-left: none; padding: 5px;">${totalQty > 0 ? totalQty.toFixed(0) : '102'} lbs</td>
               <td style="border-left: none;"></td>
             </tr>
@@ -565,8 +554,7 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
+        process: { select: { process_name: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -574,12 +562,22 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
     const pieceRates = await prisma.pieceRate.findMany();
 
     const firstRecord = list[0] || {};
-    const empCardNo = firstRecord.card_no || 'BH10040';
+    let empCardNo = firstRecord.card_no || '—';
+    let empName = '—';
 
-    let empName = 'Mst. Selina Parvin';
     if (firstRecord.card_no) {
-      const emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
-      if (emp && emp.name) empName = emp.name;
+      const emp = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { id: parseInt(firstRecord.card_no) || 0 },
+            { card_no: firstRecord.card_no }
+          ]
+        }
+      });
+      if (emp) {
+        if (emp.card_no) empCardNo = emp.card_no;
+        if (emp.name) empName = emp.name;
+      }
     }
     const sectionName = firstRecord.section?.name || 'Auto Winding';
     const monthStr = startDate ? new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'July 2026';
@@ -587,16 +585,15 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
     let totalPcs = 0;
     let totalAmount = 0;
 
-    // Group production entries by (Style, Process, Color) to show each unique combination ONCE with total quantity and amount
+    // Group production entries by (Style, Process) to show each unique combination ONCE with total quantity and amount
     const groupedWagesMap = new Map();
 
     list.forEach(item => {
-      const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
+      const key = `${item.style_id}-${item.process_id}`;
       const pr = pieceRates.find(r =>
         r.section_id === item.section_id &&
         r.style_id === item.style_id &&
-        r.process_id === item.process_id &&
-        r.color_id === item.color_id
+        r.process_id === item.process_id
       );
       const rate = pr ? Number(pr.rate) : 1.25;
 
@@ -604,7 +601,6 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
         groupedWagesMap.set(key, {
           styleNo: item.style?.style_no || 'MEPI',
           processName: item.process?.process_name || '100% OR COTTON 2/40',
-          colorName: item.color?.color_name || 'BLACK',
           rate: rate,
           totalPcs: 0
         });
@@ -625,7 +621,6 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
         <tr>
           <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; font-size: 8pt;">${item.styleNo}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 8pt;">${item.processName}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; font-size: 8pt;">${item.colorName}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt;">${item.totalPcs.toFixed(2)}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt;">${item.rate.toFixed(2)}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt; font-weight: bold;">${amount.toFixed(2)}</td>
@@ -793,12 +788,11 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 20%; text-align: left;">STYLE</th>
-              <th style="width: 28%; text-align: left;">TYPE</th>
-              <th style="width: 20%; text-align: left;">COLOR</th>
-              <th style="width: 12%; text-align: right;">NO. OF PCS</th>
-              <th style="width: 10%; text-align: right;">RATE</th>
-              <th style="width: 10%; text-align: right;">AMOUNT</th>
+              <th style="width: 25%; text-align: left;">STYLE</th>
+              <th style="width: 35%; text-align: left;">PROCESS / TYPE</th>
+              <th style="width: 15%; text-align: right;">NO. OF PCS</th>
+              <th style="width: 12%; text-align: right;">RATE</th>
+              <th style="width: 13%; text-align: right;">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
@@ -806,30 +800,13 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
               <tr>
                 <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
                 <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BLACK</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">1.25</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">42.50</td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BROWN ICE</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">1.25</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">42.50</td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">ECRU</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">1.25</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">42.50</td>
               </tr>
             `}
             <tr class="total-row">
-              <td colSpan="3" style="text-align: right; border-right: none; padding: 4px;">Total :</td>
+              <td colSpan="2" style="text-align: right; border-right: none; padding: 4px;">Total :</td>
               <td style="text-align: right; border-left: none; border-right: none; padding: 4px;">${totalPcs > 0 ? totalPcs.toFixed(2) : '102.00'} lbs</td>
               <td style="border-left: none; border-right: none;"></td>
               <td style="text-align: right; border-left: none; padding: 4px;">${totalAmount > 0 ? totalAmount.toFixed(2) : '127.50'}</td>
@@ -958,11 +935,11 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
       }
     });
 
-    // Group present period production by (buyer, style, process, color)
+    // Group present period production by (buyer, style, process)
     const statementMap = new Map();
 
     list.forEach(item => {
-      const key = `${item.style?.buyer_id || 0}-${item.style_id}-${item.process_id}-${item.color_id}`;
+      const key = `${item.style?.buyer_id || 0}-${item.style_id}-${item.process_id}`;
       if (!statementMap.has(key)) {
         statementMap.set(key, {
           buyerId: item.style?.buyer_id || 0,
@@ -971,8 +948,6 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
           styleNo: item.style?.style_no || 'MEPI',
           processId: item.process_id,
           processName: item.process?.process_name || '100% OR COTTON 2/40',
-          colorId: item.color_id,
-          colorName: item.color?.color_name || 'BLACK',
           presentSalaryQty: 0
         });
       }
@@ -987,12 +962,11 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
         include: {
           buyer: { select: { name: true } },
           style: { select: { style_no: true } },
-          process: { select: { process_name: true } },
-          color: { select: { color_name: true } }
+          process: { select: { process_name: true } }
         }
       });
       secOrders.forEach(ord => {
-        const key = `${ord.buyer_id}-${ord.style_id}-${ord.process_id}-${ord.color_id}`;
+        const key = `${ord.buyer_id}-${ord.style_id}-${ord.process_id}`;
         if (!statementMap.has(key)) {
           statementMap.set(key, {
             buyerId: ord.buyer_id,
@@ -1001,8 +975,6 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
             styleNo: ord.style?.style_no || 'MEPI',
             processId: ord.process_id,
             processName: ord.process?.process_name || '100% OR COTTON 2/40',
-            colorId: ord.color_id,
-            colorName: ord.color?.color_name || 'BLACK',
             presentSalaryQty: 0
           });
         }
@@ -1025,15 +997,14 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
       // 1. Match Buyer Order Quantity from buyer_orders table
       const matchedOrder = buyerOrders.find(o =>
         o.style_id === item.styleId &&
-        o.process_id === item.processId &&
-        o.color_id === item.colorId
+        o.process_id === item.processId
       ) || buyerOrders.find(o => o.style_id === item.styleId);
 
       const orderQty = matchedOrder ? Number(matchedOrder.order_quantity) : 0;
 
-      // 3. Previous Salary Qty: Total production quantity before start date for matched style, process, color
+      // 3. Previous Salary Qty: Total production quantity before start date for matched style, process
       const prevSalaryQty = allProdUntilEnd
-        .filter(p => p.style_id === item.styleId && p.process_id === item.processId && p.color_id === item.colorId && new Date(p.production_date) < start)
+        .filter(p => p.style_id === item.styleId && p.process_id === item.processId && new Date(p.production_date) < start)
         .reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
 
       // 4. Present Salary Qty (within selected date range)
@@ -1064,7 +1035,6 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; text-align: left;">${item.buyerName}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; font-weight: bold; text-align: left;">${item.styleNo}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; text-align: left;">${item.processName}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; text-align: left;">${item.colorName}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; text-align: right;">${orderQty.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; text-align: right;">${totalProdQty.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
           <td style="border: 1px solid #000; padding: 4px 6px; font-size: 7.5pt; text-align: right;">${prevSalaryQty.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1188,27 +1158,26 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 13%;">BuyerName</th>
-              <th style="width: 8%;">StyleName</th>
-              <th style="width: 14%;">Process</th>
-              <th style="width: 8%;">Color</th>
+              <th style="width: 15%;">BuyerName</th>
+              <th style="width: 11%;">StyleName</th>
+              <th style="width: 18%;">Process</th>
               <th style="width: 8%;">Order<br>Quantity</th>
               <th style="width: 8%;">Total Prod.<br>Qty</th>
               <th style="width: 8.5%;">Previous<br>Salary Qty</th>
               <th style="width: 8.5%;">Present<br>Salary Qty</th>
               <th style="width: 8.5%;">Total Salary<br>Quantity</th>
-              <th style="width: 7.5%;">Main Prod.<br>Quantity</th>
-              <th style="width: 8%;">Balace<br>Quantity</th>
+              <th style="width: 8%;">Main Prod.<br>Quantity</th>
+              <th style="width: 8.5%;">Balance<br>Quantity</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml.length > 0 ? rowsHtml : `
               <tr>
-                <td colSpan="11" style="text-align:center; padding: 20px; font-size: 9pt;">কোনো প্রোডাকশন স্টেটমেন্ট ডাটা পাওয়া যায়নি</td>
+                <td colSpan="10" style="text-align:center; padding: 20px; font-size: 9pt;">কোনো প্রোডাকশন স্টেটমেন্ট ডাটা পাওয়া যায়নি</td>
               </tr>
             `}
             <tr class="total-row">
-              <td colSpan="4" style="text-align: left; padding: 4px;">Sub-Total :</td>
+              <td colSpan="3" style="text-align: left; padding: 4px;">Sub-Total :</td>
               <td style="text-align: right; padding: 4px;">${sumOrder.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
               <td style="text-align: right; padding: 4px;">${sumTotalProd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
               <td style="text-align: right; padding: 4px;">${sumPrev.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1218,7 +1187,7 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
               <td style="text-align: right; padding: 4px;">${sumBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             </tr>
             <tr class="total-row">
-              <td colSpan="4" style="text-align: left; padding: 4px;">Grand-Total :</td>
+              <td colSpan="3" style="text-align: left; padding: 4px;">Grand-Total :</td>
               <td style="text-align: right; padding: 4px;">${sumOrder.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
               <td style="text-align: right; padding: 4px;">${sumTotalProd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
               <td style="text-align: right; padding: 4px;">${sumPrev.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1274,7 +1243,7 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
   }
 };
 
-// 6. Monthly Rate Sheet Puppeteer PDF Exporter (Style, Process, Color Group-Wise Single Rate View)
+// 6. Monthly Rate Sheet Puppeteer PDF Exporter (Style, Process Group-Wise Single Rate View)
 exports.generateMonthlyRateSheetPdf = async (req, res) => {
   let browser = null;
   try {
@@ -1297,8 +1266,7 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
       where: { section_id: parseInt(section_id) },
       include: {
         style: { select: { style_no: true } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
+        process: { select: { process_name: true } }
       },
       orderBy: [
         { style_id: 'asc' },
@@ -1306,7 +1274,7 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
       ]
     });
 
-    // Also fetch production records in date range if specified, to catch any style/process/color logged in production
+    // Also fetch production records in date range if specified
     const whereProd = { section_id: parseInt(section_id) };
     if (startDate && endDate) {
       whereProd.production_date = {
@@ -1319,33 +1287,30 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
       where: whereProd,
       include: {
         style: { select: { style_no: true } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
+        process: { select: { process_name: true } }
       }
     });
 
-    // Group & Deduplicate by (style_id, process_id, color_id) -> Single Rate View
+    // Group & Deduplicate by (style_id, process_id) -> Single Rate View
     const rateGroupMap = new Map();
 
     // 1. Populate from pieceRates table
     pieceRates.forEach(pr => {
-      const key = `${pr.style_id}-${pr.process_id}-${pr.color_id}`;
+      const key = `${pr.style_id}-${pr.process_id}`;
       rateGroupMap.set(key, {
         styleNo: pr.style?.style_no || '—',
         processName: pr.process?.process_name || '—',
-        colorName: pr.color?.color_name || '—',
         rate: Number(pr.rate) || 0
       });
     });
 
-    // 2. Populate from production records (if any style/process/color logged in production doesn't have a rate yet)
+    // 2. Populate from production records
     productionList.forEach(item => {
-      const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
+      const key = `${item.style_id}-${item.process_id}`;
       if (!rateGroupMap.has(key)) {
         rateGroupMap.set(key, {
           styleNo: item.style?.style_no || '—',
           processName: item.process?.process_name || '—',
-          colorName: item.color?.color_name || '—',
           rate: 0
         });
       }
@@ -1359,7 +1324,6 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
         <td style="border: 1px solid #000; padding: 5px 8px; text-align: center; font-size: 8.5pt;">${index + 1}</td>
         <td style="border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 8.5pt; font-weight: bold;">${item.styleNo}</td>
         <td style="border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 8.5pt;">${item.processName}</td>
-        <td style="border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 8.5pt;">${item.colorName}</td>
         <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-size: 8.5pt; font-weight: bold; ${item.rate === 0 ? 'color: #dc2626;' : ''}">${item.rate.toFixed(2)}</td>
       </tr>
     `).join('');
@@ -1473,16 +1437,15 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
           <thead>
             <tr>
               <th style="width: 8%; text-align: center;">SL</th>
-              <th style="width: 25%; text-align: left;">STYLE NO</th>
-              <th style="width: 35%; text-align: left;">PROCESS / TYPE</th>
-              <th style="width: 20%; text-align: left;">COLOR</th>
-              <th style="width: 12%; text-align: right;">RATE (TK)</th>
+              <th style="width: 35%; text-align: left;">STYLE NO</th>
+              <th style="width: 42%; text-align: left;">PROCESS / TYPE</th>
+              <th style="width: 15%; text-align: right;">RATE (TK)</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml.length > 0 ? rowsHtml : `
               <tr>
-                <td colSpan="5" style="text-align:center; padding: 20px; font-size: 9pt;">কোনো পিস রেট ডাটা পাওয়া যায়নি</td>
+                <td colSpan="4" style="text-align:center; padding: 20px; font-size: 9pt;">কোনো পিস রেট ডাটা পাওয়া যায়নি</td>
               </tr>
             `}
           </tbody>
@@ -1529,7 +1492,231 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
   }
 };
 
-// 7. Production Report Data (JSON)
+// 7. Buyer Order PDF Exporter (Without Color)
+exports.generateBuyerOrderPdf = async (req, res) => {
+  let browser = null;
+  try {
+    const { buyer_id, section_id, style_id } = req.query;
+    const where = {};
+
+    if (buyer_id && buyer_id !== 'All') where.buyer_id = parseInt(buyer_id);
+    if (section_id && section_id !== 'All') where.section_id = parseInt(section_id);
+    if (style_id && style_id !== 'All') where.style_id = parseInt(style_id);
+
+    const companyProfile = await prisma.companyProfile.findFirst();
+    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
+    const companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+
+    const list = await prisma.buyerOrder.findMany({
+      where,
+      include: {
+        section: { select: { name: true } },
+        buyer: { select: { name: true } },
+        style: { select: { style_no: true } },
+        process: { select: { process_name: true } }
+      },
+      orderBy: { id: 'desc' }
+    });
+
+    const totalOrderQty = list.reduce((acc, curr) => acc + curr.order_quantity, 0);
+    const totalYarnReceived = list.reduce((acc, curr) => acc + (curr.yarn_received || 0), 0);
+    const totalBalance = list.reduce((acc, curr) => acc + Math.max(0, curr.order_quantity - (curr.yarn_received || 0)), 0);
+    const currentDateStr = new Date().toLocaleDateString('en-GB');
+
+    const rowsHtml = list.map((item, index) => {
+      const balance = Math.max(0, item.order_quantity - (item.yarn_received || 0));
+      return `
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 6px; text-align: center; font-size: 8pt;">${index + 1}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; font-size: 8pt;">${item.buyer?.name || '—'}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; font-size: 8pt;">${item.section?.name || '—'}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; font-size: 8pt; font-weight: bold;">${item.style?.style_no || '—'}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; font-size: 8pt;">${item.process?.process_name || '—'}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; text-align: right; font-size: 8pt; font-weight: bold;">${Number(item.order_quantity).toLocaleString()}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; text-align: right; font-size: 8pt;">${Number(item.yarn_received || 0).toLocaleString()}</td>
+          <td style="border: 1px solid #000; padding: 5px 6px; text-align: right; font-size: 8pt; font-weight: bold;">${Number(balance).toLocaleString()}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>BUYER ORDER REPORT - ${companyName}</title>
+        <style>
+          @page {
+            size: A4 landscape;
+            margin: 12mm 10mm 12mm 10mm;
+          }
+          body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 10px;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 12px;
+          }
+          .company-name {
+            font-size: 15pt;
+            font-weight: bold;
+            margin-bottom: 3px;
+          }
+          .company-address {
+            font-size: 9pt;
+            margin-bottom: 14px;
+          }
+          .sheet-title-box {
+            display: inline-block;
+            border: 1.5px solid #000;
+            padding: 5px 28px;
+            font-size: 11pt;
+            font-weight: bold;
+            letter-spacing: 0.8px;
+          }
+          .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 9.5pt;
+            font-weight: bold;
+          }
+          table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+          }
+          table.data-table th {
+            border: 1.5px solid #000;
+            padding: 6px 6px;
+            font-size: 8pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: #fff;
+          }
+          table.data-table td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+          }
+          .total-row td {
+            border: 1.5px solid #000;
+            font-weight: bold;
+            font-size: 8.5pt;
+          }
+          .footer-signs {
+            margin-top: 80px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 8.5pt;
+            font-weight: bold;
+          }
+          .sign-line {
+            border-top: 1px solid #000;
+            width: 120px;
+            text-align: center;
+            padding-top: 4px;
+          }
+          .page-num {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 8pt;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">${companyName}</div>
+          <div class="company-address">${companyAddress}</div>
+          <div>
+            <div class="sheet-title-box">BUYER ORDER REPORT</div>
+          </div>
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td style="text-align: left; width: 33%;">Total Orders : ${list.length}</td>
+            <td style="text-align: center; width: 34%;">Total Order Qty : ${totalOrderQty.toLocaleString()} pcs</td>
+            <td style="text-align: right; width: 33%;">Date : ${currentDateStr}</td>
+          </tr>
+        </table>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 5%; text-align: center;">SL</th>
+              <th style="width: 18%; text-align: left;">BUYER</th>
+              <th style="width: 14%; text-align: left;">SECTION</th>
+              <th style="width: 15%; text-align: left;">STYLE NO</th>
+              <th style="width: 20%; text-align: left;">PROCESS</th>
+              <th style="width: 10%; text-align: right;">ORDER QTY</th>
+              <th style="width: 10%; text-align: right;">YARN RECV</th>
+              <th style="width: 8%; text-align: right;">BALANCE</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml.length > 0 ? rowsHtml : `
+              <tr>
+                <td colSpan="8" style="text-align:center; padding: 20px; font-size: 9pt;">কোনো বায়ার অর্ডার ডাটা পাওয়া যায়নি</td>
+              </tr>
+            `}
+            <tr class="total-row">
+              <td colSpan="5" style="text-align: right; padding: 5px;">Total :</td>
+              <td style="text-align: right; padding: 5px;">${totalOrderQty.toLocaleString()}</td>
+              <td style="text-align: right; padding: 5px;">${totalYarnReceived.toLocaleString()}</td>
+              <td style="text-align: right; padding: 5px;">${totalBalance.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="footer-signs">
+          <div class="sign-line">Prepared By</div>
+          <div class="sign-line">In-Charge</div>
+          <div class="sign-line">Manager</div>
+          <div class="sign-line">Authorized By</div>
+        </div>
+
+        <div class="page-num">Page 1 of 1</div>
+      </body>
+      </html>
+    `;
+
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+    const uint8Pdf = await page.pdf({
+      format: 'A4',
+      landscape: true,
+      printBackground: true,
+      margin: { top: '12mm', right: '10mm', bottom: '12mm', left: '10mm' }
+    });
+
+    await browser.close();
+
+    const pdfBuffer = Buffer.from(uint8Pdf);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Content-Disposition', `inline; filename="BUYER_ORDER_REPORT.pdf"`);
+    res.end(pdfBuffer);
+  } catch (err) {
+    if (browser) await browser.close();
+    console.error('Puppeteer Buyer Order PDF error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// 8. Production Report Data (JSON)
 exports.getProductionReport = async (req, res) => {
   try {
     const { section_id, style_id, startDate, endDate } = req.query;
@@ -1548,8 +1735,7 @@ exports.getProductionReport = async (req, res) => {
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
+        process: { select: { process_name: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -1566,8 +1752,7 @@ exports.getProductionReport = async (req, res) => {
         section_name: item.section?.name || '—',
         style_no: item.style?.style_no || '—',
         buyer_name: item.style?.buyer?.name || '—',
-        process_name: item.process?.process_name || '—',
-        color_name: item.color?.color_name || '—'
+        process_name: item.process?.process_name || '—'
       }))
     });
   } catch (err) {
@@ -1576,7 +1761,7 @@ exports.getProductionReport = async (req, res) => {
   }
 };
 
-// 8. Buyer Order Report Data (JSON)
+// 9. Buyer Order Report Data (JSON)
 exports.getBuyerOrderReport = async (req, res) => {
   try {
     const { buyer_id, section_id, style_id } = req.query;
@@ -1592,8 +1777,7 @@ exports.getBuyerOrderReport = async (req, res) => {
         section: { select: { name: true } },
         buyer: { select: { name: true } },
         style: { select: { style_no: true } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
+        process: { select: { process_name: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -1612,8 +1796,7 @@ exports.getBuyerOrderReport = async (req, res) => {
         section_name: item.section?.name || '—',
         buyer_name: item.buyer?.name || '—',
         style_no: item.style?.style_no || '—',
-        process_name: item.process?.process_name || '—',
-        color_name: item.color?.color_name || '—'
+        process_name: item.process?.process_name || '—'
       }))
     });
   } catch (err) {

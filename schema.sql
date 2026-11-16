@@ -36,6 +36,32 @@ INSERT INTO users (name, username, password, email, role)
 VALUES ('System Admin', 'admin', 'admin123', 'admin@bestwool.com', 'admin')
 ON DUPLICATE KEY UPDATE id=id;
 
+-- Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  code VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'Active',
+  processed_by INT,
+  processed_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Units Table
+CREATE TABLE IF NOT EXISTS units (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  company_id INT,
+  name VARCHAR(100) NOT NULL,
+  code VARCHAR(50),
+  address TEXT,
+  phone VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'Active',
+  processed_by INT,
+  processed_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (company_id) REFERENCES company_profiles(id) ON DELETE SET NULL
+);
+
+-- Note: sections table includes department_id FOREIGN KEY referencing departments(id)
+
 -- Insert Mock Permissions for Admin
 INSERT INTO permissions (user_id, menu_key, can_view)
 VALUES 
@@ -50,5 +76,11 @@ VALUES
 (1, 'production_show', TRUE),
 (1, 'user', TRUE),
 (1, 'user_permission', TRUE),
+(1, 'department', TRUE),
+(1, 'section', TRUE),
+(1, 'block', TRUE),
+(1, 'unit', TRUE),
+(1, 'company_profile', TRUE),
 (1, 'database_backup', TRUE)
 ON DUPLICATE KEY UPDATE id=id;
+

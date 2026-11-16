@@ -131,7 +131,9 @@ export default function PendingBuyerOrder({ token }) {
                         <td className="py-3.5 px-4 text-slate-300">
                           <div className="flex flex-col">
                             <span>{bo.process?.process_name || '—'}</span>
-                            <span className="text-sky-400 text-xs font-semibold">{bo.color?.color_name || '—'}</span>
+                            {bo.color?.color_name && (
+                              <span className="text-sky-400 text-xs font-semibold">{bo.color.color_name}</span>
+                            )}
                           </div>
                         </td>
                         <td className="py-3.5 px-4 text-slate-200 font-bold">

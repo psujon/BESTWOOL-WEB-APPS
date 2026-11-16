@@ -2,7 +2,25 @@ const { prisma } = require('../db');
 
 exports.getAll = async (req, res) => {
   try {
+    const { search, limit } = req.query;
+    const where = {};
+
+    if (search && search.trim() !== '') {
+      const q = search.trim();
+      where.OR = [
+        { section: { name: { contains: q } } },
+        { buyer: { name: { contains: q } } },
+        { style: { style_no: { contains: q } } },
+        { process: { process_name: { contains: q } } },
+        { color: { color_name: { contains: q } } }
+      ];
+    }
+
+    const takeLimit = limit ? parseInt(limit) : (search ? undefined : 50);
+
     const list = await prisma.buyerOrder.findMany({
+      where,
+      take: takeLimit,
       include: {
         section: { select: { name: true } },
         buyer: { select: { name: true } },
@@ -39,22 +57,26 @@ exports.create = async (req, res) => {
     const bId = parseInt(buyer_id);
     const stId = parseInt(style_id);
     const pId = parseInt(process_id);
-    const cId = parseInt(color_id);
+    const cId = color_id ? parseInt(color_id) : null;
 
     // Check duplicate order entry
+    const whereClause = {
+      section_id: sId,
+      buyer_id: bId,
+      style_id: stId,
+      process_id: pId
+    };
+    if (cId) {
+      whereClause.color_id = cId;
+    }
+
     const existing = await prisma.buyerOrder.findFirst({
-      where: {
-        section_id: sId,
-        buyer_id: bId,
-        style_id: stId,
-        process_id: pId,
-        color_id: cId
-      }
+      where: whereClause
     });
 
     if (existing) {
       return res.status(400).json({ 
-        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
       });
     }
 
@@ -86,23 +108,27 @@ exports.update = async (req, res) => {
     const bId = parseInt(buyer_id);
     const stId = parseInt(style_id);
     const pId = parseInt(process_id);
-    const cId = parseInt(color_id);
+    const cId = color_id ? parseInt(color_id) : null;
 
     // Check duplicate order entry excluding current record
+    const whereClause = {
+      section_id: sId,
+      buyer_id: bId,
+      style_id: stId,
+      process_id: pId,
+      NOT: { id: orderId }
+    };
+    if (cId) {
+      whereClause.color_id = cId;
+    }
+
     const existing = await prisma.buyerOrder.findFirst({
-      where: {
-        section_id: sId,
-        buyer_id: bId,
-        style_id: stId,
-        process_id: pId,
-        color_id: cId,
-        NOT: { id: orderId }
-      }
+      where: whereClause
     });
 
     if (existing) {
       return res.status(400).json({ 
-        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি বায়ার অর্ডার এন্ট্রি বিদ্যমান রয়েছে।' 
       });
     }
 

@@ -99,6 +99,10 @@ export default function UserPermission({ token }) {
     { key: 'reports', label: 'Reports Panel - Employee List (রিপোর্টস - এমপ্লয়ী লিস্ট)' },
     { key: 'user', label: 'User Settings (ইউজার সেটিংস)' },
     { key: 'user_permission', label: 'Permissions (অনুমতি কনফিগার)' },
+    { key: 'department', label: 'Department Settings (ডিপার্টমেন্ট)' },
+    { key: 'section', label: 'Section Settings (সেকশন)' },
+    { key: 'block', label: 'Block / Line Settings (ব্লক / লাইন)' },
+    { key: 'unit', label: 'Unit Settings (ইউনিট)' },
     { key: 'company_profile', label: 'Company Profile (কোম্পানী প্রোফাইল)' },
     { key: 'database_backup', label: 'Database Backup (ব্যাকআপ)' }
   ];

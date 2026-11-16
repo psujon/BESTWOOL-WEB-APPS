@@ -35,21 +35,25 @@ exports.create = async (req, res) => {
     const sId = parseInt(section_id);
     const stId = parseInt(style_id);
     const pId = parseInt(process_id);
-    const cId = parseInt(color_id);
+    const cId = color_id ? parseInt(color_id) : null;
 
     // Check duplicate piece rate
+    const whereClause = {
+      section_id: sId,
+      style_id: stId,
+      process_id: pId
+    };
+    if (cId) {
+      whereClause.color_id = cId;
+    }
+
     const existing = await prisma.pieceRate.findFirst({
-      where: {
-        section_id: sId,
-        style_id: stId,
-        process_id: pId,
-        color_id: cId
-      }
+      where: whereClause
     });
 
     if (existing) {
       return res.status(400).json({ 
-        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।' 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।' 
       });
     }
 
@@ -80,22 +84,26 @@ exports.update = async (req, res) => {
     const sId = parseInt(section_id);
     const stId = parseInt(style_id);
     const pId = parseInt(process_id);
-    const cId = parseInt(color_id);
+    const cId = color_id ? parseInt(color_id) : null;
 
     // Check duplicate piece rate excluding current record
+    const whereClause = {
+      section_id: sId,
+      style_id: stId,
+      process_id: pId,
+      NOT: { id: prId }
+    };
+    if (cId) {
+      whereClause.color_id = cId;
+    }
+
     const existing = await prisma.pieceRate.findFirst({
-      where: {
-        section_id: sId,
-        style_id: stId,
-        process_id: pId,
-        color_id: cId,
-        NOT: { id: prId }
-      }
+      where: whereClause
     });
 
     if (existing) {
       return res.status(400).json({ 
-        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল, প্রসেস এবং কালারের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।' 
+        message: 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, স্টাইল এবং প্রসেসের জন্য ইতোমধ্যে একটি পিস রেট এন্ট্রি বিদ্যমান রয়েছে।' 
       });
     }
 

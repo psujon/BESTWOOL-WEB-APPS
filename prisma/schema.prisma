@@ -47,7 +47,7 @@ model Production {
   section_id      Int
   style_id        Int
   process_id      Int
-  color_id        Int
+  color_id        Int?
   production_date DateTime  @db.Date
   card_no         String    @db.VarChar(100)
   quantity        Int
@@ -56,7 +56,7 @@ model Production {
   section         Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
   style           Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
   process         Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color           Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  color           Color?    @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("production")
 }
@@ -94,13 +94,27 @@ model Style {
   @@map("styles")
 }
 
+model Department {
+  id             Int           @id @default(autoincrement())
+  name           String        @db.VarChar(100)
+  code           String?       @db.VarChar(50)
+  status         String        @default("Active") @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime?     @default(now())
+  sections       Section[]
+
+  @@map("departments")
+}
+
 model Section {
   id             Int           @id @default(autoincrement())
+  department_id  Int?
   name           String        @db.VarChar(100)
   code           String        @db.VarChar(50)
   status         String        @default("Active") @db.VarChar(50)
   processed_by   Int?
   processed_date DateTime?     @default(now())
+  department     Department?   @relation(fields: [department_id], references: [id], onDelete: SetNull)
   processes      Process[]
   colors         Color[]
   pieceRates     PieceRate[]
@@ -108,6 +122,7 @@ model Section {
   yarnChallans   YarnChallan[]
   productions    Production[]
   employees      Employee[]
+  blocks         Block[]
 
   @@map("sections")
 }
@@ -158,7 +173,7 @@ model PieceRate {
   section_id     Int
   style_id       Int
   process_id     Int
-  color_id       Int
+  color_id       Int?
   rate           Decimal   @db.Decimal(10, 2)
   effective_date DateTime  @db.Date
   processed_by   Int?
@@ -166,7 +181,7 @@ model PieceRate {
   section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
   style          Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
   process        Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color          Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  color          Color?    @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("piece_rates")
 }
@@ -177,7 +192,7 @@ model BuyerOrder {
   buyer_id              Int
   style_id              Int
   process_id            Int
-  color_id              Int
+  color_id              Int?
   order_quantity        Int
   yarn_received         Int                    @default(0)
   processed_by          Int?
@@ -186,7 +201,7 @@ model BuyerOrder {
   buyer                 Buyer                  @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
   style                 Style                  @relation(fields: [style_id], references: [id], onDelete: Cascade)
   process               Process                @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color                 Color                  @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  color                 Color?                 @relation(fields: [color_id], references: [id], onDelete: Cascade)
   orderIncreaseRequests OrderIncreaseRequest[]
   rewindingRequests     RewindingRequest[]
 
@@ -198,7 +213,7 @@ model YarnChallan {
   section_id     Int
   style_id       Int
   process_id     Int
-  color_id       Int
+  color_id       Int?
   challan_no     String?   @db.VarChar(100)
   gate_pass_no   String?   @db.VarChar(100)
   challan_date   DateTime? @db.Date
@@ -208,7 +223,7 @@ model YarnChallan {
   section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
   style          Style     @relation(fields: [style_id], references: [id], onDelete: Cascade)
   process        Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
-  color          Color     @relation(fields: [color_id], references: [id], onDelete: Cascade)
+  color          Color?    @relation(fields: [color_id], references: [id], onDelete: Cascade)
 
   @@map("yarn_challans")
 }
@@ -225,8 +240,24 @@ model CompanyProfile {
   logo_url       String?   @db.LongText
   processed_by   Int?
   processed_date DateTime? @default(now())
+  units          Unit[]
 
   @@map("company_profiles")
+}
+
+model Unit {
+  id             Int             @id @default(autoincrement())
+  company_id     Int?
+  name           String          @db.VarChar(100)
+  code           String?         @db.VarChar(50)
+  address        String?         @db.Text
+  phone          String?         @db.VarChar(50)
+  status         String          @default("Active") @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime?       @default(now())
+  company        CompanyProfile? @relation(fields: [company_id], references: [id], onDelete: SetNull)
+
+  @@map("units")
 }
 
 model Employee {
@@ -236,10 +267,12 @@ model Employee {
   designation    String    @db.VarChar(100)
   join_date      DateTime  @db.Date
   section_id     Int
+  block_id       Int?
   status         String    @default("Active") @db.VarChar(20)
   processed_by   Int?
   processed_date DateTime? @default(now())
   section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  block          Block?    @relation(fields: [block_id], references: [id], onDelete: SetNull)
 
   @@map("employees")
 }
@@ -271,4 +304,18 @@ model RewindingRequest {
   buyerOrder         BuyerOrder @relation(fields: [buyer_order_id], references: [id], onDelete: Cascade)
 
   @@map("rewinding_requests")
+}
+
+model Block {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(100)
+  code           String?   @db.VarChar(50)
+  section_id     Int?
+  status         String    @default("Active") @db.VarChar(50)
+  processed_by   Int?
+  processed_date DateTime? @default(now())
+  section        Section?  @relation(fields: [section_id], references: [id], onDelete: SetNull)
+  employees      Employee[]
+
+  @@map("blocks")
 }

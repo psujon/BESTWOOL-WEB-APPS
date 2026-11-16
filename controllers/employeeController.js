@@ -5,7 +5,8 @@ exports.getAllActive = async (req, res) => {
     const list = await prisma.employee.findMany({
       where: { status: 'Active' },
       include: {
-        section: { select: { name: true, code: true } }
+        section: { select: { name: true, code: true } },
+        block: { select: { id: true, name: true, code: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -14,7 +15,10 @@ exports.getAllActive = async (req, res) => {
       ...emp,
       section_name: emp.section?.name || null,
       section_code: emp.section?.code || null,
-      section: undefined
+      block_name: emp.block?.name || null,
+      block_code: emp.block?.code || null,
+      section: undefined,
+      block: undefined
     }));
 
     res.json(result);
@@ -25,11 +29,11 @@ exports.getAllActive = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { card_no, name, designation, join_date, section_id } = req.body;
+  const { card_no, name, designation, join_date, section_id, block_id } = req.body;
   const userId = req.user ? req.user.id : null;
 
-  if (!card_no || !name || !designation || !join_date || !section_id) {
-    return res.status(400).json({ message: 'কার্ড নং, নাম, পদবী, জয়েন ডেট ও সেকশন পূরণ করা বাধ্যতামূলক!' });
+  if (!card_no || !name || !designation || !join_date || !section_id || !block_id) {
+    return res.status(400).json({ message: 'কার্ড নং, নাম, পদবী, জয়েন ডেট, সেকশন ও ব্লক পূরণ করা বাধ্যতামূলক!' });
   }
 
   try {
@@ -40,6 +44,7 @@ exports.create = async (req, res) => {
         designation: designation.trim(),
         join_date: new Date(join_date),
         section_id: parseInt(section_id),
+        block_id: block_id ? parseInt(block_id) : null,
         status: 'Active',
         processed_by: userId,
         processed_date: new Date()
@@ -55,7 +60,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { card_no, name, designation, join_date, section_id, status } = req.body;
+  const { card_no, name, designation, join_date, section_id, block_id, status } = req.body;
   const userId = req.user ? req.user.id : null;
 
   try {
@@ -67,6 +72,7 @@ exports.update = async (req, res) => {
         designation: designation ? designation.trim() : undefined,
         join_date: join_date ? new Date(join_date) : undefined,
         section_id: section_id ? parseInt(section_id) : undefined,
+        block_id: block_id !== undefined ? (block_id ? parseInt(block_id) : null) : undefined,
         status: status || 'Active',
         processed_by: userId,
         processed_date: new Date()

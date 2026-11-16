@@ -12,6 +12,7 @@ router.get('/pdf/monthly-production', reportController.generateMonthlyProduction
 router.get('/pdf/monthly-wages', reportController.generateMonthlyWagesPdf);
 router.get('/pdf/monthly-production-statement', reportController.generateMonthlyProductionStatementPdf);
 router.get('/pdf/monthly-rate-sheet', reportController.generateMonthlyRateSheetPdf);
+router.get('/pdf/buyer-order', reportController.generateBuyerOrderPdf);
 
 router.get('/production', reportController.getProductionReport);
 router.get('/buyer-order', reportController.getBuyerOrderReport);

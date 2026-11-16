@@ -83,9 +83,8 @@ function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
-                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
-                  }`}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{opt.label}</span>
                   {opt.sublabel && (
@@ -138,15 +137,15 @@ export default function ProductionShow({ token }) {
 
   // Dropdown Categories State
   const [sections, setSections] = useState([]);
+  const [blocks, setBlocks] = useState([]);
   const [styles, setStyles] = useState([]);
   const [processes, setProcesses] = useState([]);
-  const [colors, setColors] = useState([]);
 
   // Filter Input States (Default Date set to Today)
   const [searchSection, setSearchSection] = useState('');
+  const [searchBlock, setSearchBlock] = useState('');
   const [searchStyle, setSearchStyle] = useState('');
   const [searchProcess, setSearchProcess] = useState('');
-  const [searchColor, setSearchColor] = useState('');
   const [searchCardNo, setSearchCardNo] = useState('');
   const [fromDate, setFromDate] = useState(getTodayDateString());
   const [toDate, setToDate] = useState(getTodayDateString());
@@ -158,21 +157,22 @@ export default function ProductionShow({ token }) {
 
   useEffect(() => {
     fetchDropdownOptions();
+    fetchProductionList();
   }, [token]);
 
   const fetchDropdownOptions = () => {
     const headers = { 'Authorization': `Bearer ${token}` };
     Promise.all([
       fetch('http://localhost:5000/api/sections', { headers }).then(r => r.json()),
+      fetch('http://localhost:5000/api/blocks', { headers }).then(r => r.json()),
       fetch('http://localhost:5000/api/styles', { headers }).then(r => r.json()),
-      fetch('http://localhost:5000/api/processes', { headers }).then(r => r.json()),
-      fetch('http://localhost:5000/api/colors', { headers }).then(r => r.json())
+      fetch('http://localhost:5000/api/processes', { headers }).then(r => r.json())
     ])
-      .then(([secData, stData, prData, colData]) => {
+      .then(([secData, blkData, stData, prData]) => {
         setSections(Array.isArray(secData) ? secData : []);
+        setBlocks(Array.isArray(blkData) ? blkData : []);
         setStyles(Array.isArray(stData) ? stData : []);
         setProcesses(Array.isArray(prData) ? prData : []);
-        setColors(Array.isArray(colData) ? colData : []);
       })
       .catch(err => console.error('Error fetching dropdown categories:', err));
   };
@@ -183,18 +183,18 @@ export default function ProductionShow({ token }) {
     setHasSearched(true);
 
     const sec = customFilters ? customFilters.searchSection : searchSection;
+    const blk = customFilters ? customFilters.searchBlock : searchBlock;
     const st = customFilters ? customFilters.searchStyle : searchStyle;
     const pr = customFilters ? customFilters.searchProcess : searchProcess;
-    const col = customFilters ? customFilters.searchColor : searchColor;
     const card = customFilters ? customFilters.searchCardNo : searchCardNo;
     const fromD = customFilters ? customFilters.fromDate : fromDate;
     const toD = customFilters ? customFilters.toDate : toDate;
 
     const params = new URLSearchParams();
     if (sec) params.append('section_name', sec);
+    if (blk) params.append('block_name', blk);
     if (st) params.append('style_no', st);
     if (pr) params.append('process_name', pr);
-    if (col) params.append('color_name', col);
     if (card) params.append('card_no', card);
     if (fromD) params.append('from_date', fromD);
     if (toD) params.append('to_date', toD);
@@ -225,18 +225,18 @@ export default function ProductionShow({ token }) {
   const handleResetFilters = () => {
     const today = getTodayDateString();
     setSearchSection('');
+    setSearchBlock('');
     setSearchStyle('');
     setSearchProcess('');
-    setSearchColor('');
     setSearchCardNo('');
     setFromDate(today);
     setToDate(today);
 
     fetchProductionList({
       searchSection: '',
+      searchBlock: '',
       searchStyle: '',
       searchProcess: '',
-      searchColor: '',
       searchCardNo: '',
       fromDate: today,
       toDate: today
@@ -312,26 +312,15 @@ export default function ProductionShow({ token }) {
 
   const selectedSecObj = sections.find(s => s.name === searchSection);
   const selectedStObj = styles.find(s => s.style_no === searchStyle);
-  const selectedPrObj = processes.find(p => p.process_name === searchProcess && (!selectedSecObj || p.section_id === selectedSecObj.id) && (!selectedStObj || p.style_id === selectedStObj.id));
 
   // Section + Style wise process filter
   const filteredProcesses = (searchSection && searchStyle && selectedSecObj && selectedStObj)
     ? processes.filter(p => p.section_id === selectedSecObj.id && p.style_id === selectedStObj.id)
     : [];
 
-  // Process wise color filter
-  const filteredColors = (searchSection && searchStyle && searchProcess && selectedSecObj && selectedStObj && selectedPrObj)
-    ? colors.filter(c =>
-        c.section_id === selectedSecObj.id &&
-        c.style_id === selectedStObj.id &&
-        c.process_id === selectedPrObj.id
-      )
-    : [];
-
   const styleOptions = styles?.map((st) => ({
     id: st.style_no,
-    label: st.style_no,
-    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+    label: st.style_no
   })) || [];
 
   const totalQuantity = productionList.reduce((sum, item) => sum + (Number(item.quantity || item.qty) || 0), 0);
@@ -360,7 +349,7 @@ export default function ProductionShow({ token }) {
             <Filter size={16} className="text-sky-400" />
             <span>ফিল্টার ওয়াইজ সার্চ প্যানেল</span>
           </div>
-          {(searchSection || searchStyle || searchProcess || searchColor || searchCardNo || fromDate || toDate) && (
+          {(searchSection || searchBlock || searchStyle || searchProcess || searchCardNo || fromDate || toDate) && (
             <button
               type="button"
               onClick={handleResetFilters}
@@ -372,50 +361,62 @@ export default function ProductionShow({ token }) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
           {/* Section Filter */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">সেকশন (Section)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">সেকশন</label>
             <select
               className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
               value={searchSection}
               onChange={(e) => {
                 setSearchSection(e.target.value);
                 setSearchProcess('');
-                setSearchColor('');
               }}
             >
-              <option value="">সকল সেকশন (All)</option>
+              <option value="">সকল সেকশন</option>
               {sections.map(sec => (
                 <option key={sec.id} value={sec.name}>{sec.name}</option>
               ))}
             </select>
           </div>
 
+          {/* Block Filter */}
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">ব্লক/লাইন</label>
+            <select
+              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
+              value={searchBlock}
+              onChange={(e) => setSearchBlock(e.target.value)}
+            >
+              <option value="">সকল ব্লক/লাইন</option>
+              {blocks.map(blk => (
+                <option key={blk.id} value={blk.name}>{blk.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Style Filter */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">স্টাইল নম্বর (Style)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">স্টাইল নম্বর</label>
             <SearchableSelect
               options={styleOptions}
               value={searchStyle}
               onChange={(val) => {
                 setSearchStyle(val);
                 setSearchProcess('');
-                setSearchColor('');
               }}
-              placeholder="সকল স্টাইল (All)"
+              placeholder="সকল স্টাইল"
             />
           </div>
 
           {/* Process Filter */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রসেস (Process)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">প্রসেস</label>
             <select
               className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               value={searchProcess}
               onChange={(e) => {
                 setSearchProcess(e.target.value);
-                setSearchColor('');
               }}
               disabled={!searchSection || !searchStyle}
             >
@@ -423,10 +424,10 @@ export default function ProductionShow({ token }) {
                 {!searchSection
                   ? "প্রথমে সেকশন সিলেক্ট করুন"
                   : !searchStyle
-                  ? "প্রথমে স্টাইল সিলেক্ট করুন"
-                  : filteredProcesses.length === 0
-                  ? "কোনো প্রসেস পাওয়া যায়নি"
-                  : "সকল প্রসেস (All)"}
+                    ? "প্রথমে স্টাইল সিলেক্ট করুন"
+                    : filteredProcesses.length === 0
+                      ? "কোনো প্রসেস পাওয়া যায়নি"
+                      : "সকল প্রসেস (All)"}
               </option>
               {filteredProcesses.map(pr => (
                 <option key={pr.id} value={pr.process_name}>{pr.process_name}</option>
@@ -434,33 +435,9 @@ export default function ProductionShow({ token }) {
             </select>
           </div>
 
-          {/* Color Filter */}
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">রং (Color)</label>
-            <select
-              className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              value={searchColor}
-              onChange={(e) => setSearchColor(e.target.value)}
-              disabled={!searchSection || !searchStyle || !searchProcess}
-            >
-              <option value="">
-                {!searchSection || !searchStyle
-                  ? "প্রথমে সেকশন ও স্টাইল সিলেক্ট করুন"
-                  : !searchProcess
-                  ? "প্রথমে প্রসেস সিলেক্ট করুন"
-                  : filteredColors.length === 0
-                  ? "কোনো কালার পাওয়া যায়নি"
-                  : "সকল কালার (All)"}
-              </option>
-              {filteredColors.map(col => (
-                <option key={col.id} value={col.color_name}>{col.color_name}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Card No Search Input */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">কার্ড নম্বর (Card No)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">কার্ড নম্বর</label>
             <div className="relative">
               <input
                 type="text"
@@ -477,7 +454,7 @@ export default function ProductionShow({ token }) {
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
               <Calendar size={13} className="text-sky-400" />
-              <span>হইতে তারিখ (From Date)</span>
+              <span>হইতে তারিখ </span>
             </label>
             <input
               type="date"
@@ -491,7 +468,7 @@ export default function ProductionShow({ token }) {
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
               <Calendar size={13} className="text-sky-400" />
-              <span>পর্যন্ত তারিখ (To Date)</span>
+              <span>পর্যন্ত তারিখ </span>
             </label>
             <input
               type="date"
@@ -535,9 +512,9 @@ export default function ProductionShow({ token }) {
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">ক্রমিক</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">কার্ড নম্বর</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">সেকশন</th>
+                <th className="py-3.5 px-4 text-slate-300 font-semibold">ব্লক/লাইন</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">স্টাইল নম্বর</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">প্রসেস</th>
-                <th className="py-3.5 px-4 text-slate-300 font-semibold">কালার</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">কোয়ান্টিটি</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold">প্রোডাকশন ডেট</th>
                 <th className="py-3.5 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
@@ -547,8 +524,8 @@ export default function ProductionShow({ token }) {
               {productionList.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="text-center py-12 text-slate-400">
-                    {hasSearched 
-                      ? "ফিল্টার ও ডেট রেঞ্জ অনুযায়ী কোনো প্রোডাকশন রেকর্ড পাওয়া যায়নি" 
+                    {hasSearched
+                      ? "ফিল্টার ও ডেট রেঞ্জ অনুযায়ী কোনো প্রোডাকশন রেকর্ড পাওয়া যায়নি"
                       : "উপরে ফিল্টার ও তারিখ সিলেক্ট করে 'সার্চ করুন' বাটনে ক্লিক দিয়ে রিপোর্ট দেখুন"}
                   </td>
                 </tr>
@@ -556,15 +533,18 @@ export default function ProductionShow({ token }) {
                 productionList.map((item, index) => (
                   <tr key={item.id || index} className="hover:bg-white/2 transition-colors">
                     <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-200">{item.card_no || '—'}</td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-200">
+                      {item.display_card_no || item.card_no || '—'}
+                      {item.emp_name ? <span className="block text-[11px] font-normal text-slate-400">{item.emp_name}</span> : null}
+                    </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>
+                    <td className="py-3.5 px-4 text-slate-300">{item.block_name || '—'}</td>
                     <td className="py-3.5 px-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
                         {item.style_no || item.style || '—'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-slate-300">{item.process_name || '—'}</td>
-                    <td className="py-3.5 px-4 text-sky-400 font-semibold">{item.color_name || '—'}</td>
 
                     {/* Editable Quantity Column */}
                     <td className="py-3.5 px-4">

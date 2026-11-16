@@ -116,14 +116,12 @@ export default function ProductionEntry({ token }) {
   const [sections, setSections] = useState([]);
   const [styles, setStyles] = useState([]);
   const [processes, setProcesses] = useState([]);
-  const [colors, setColors] = useState([]);
   const [employees, setEmployees] = useState([]);
 
   // Form Fields
   const [sectionId, setSectionId] = useState('');
   const [styleId, setStyleId] = useState('');
   const [processId, setProcessId] = useState('');
-  const [colorId, setColorId] = useState('');
   const [productionDate, setProductionDate] = useState(getTodayDateString());
 
   // Dynamic Card Items List
@@ -137,7 +135,6 @@ export default function ProductionEntry({ token }) {
     fetchSections();
     fetchStyles();
     fetchProcesses();
-    fetchColors();
     fetchEmployees();
   }, []);
 
@@ -168,15 +165,6 @@ export default function ProductionEntry({ token }) {
       .catch(err => console.error('Error fetching processes:', err));
   };
 
-  const fetchColors = () => {
-    fetch('http://localhost:5000/api/colors', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setColors(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error fetching colors:', err));
-  };
-
   const fetchEmployees = () => {
     fetch('http://localhost:5000/api/employees', {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -196,7 +184,6 @@ export default function ProductionEntry({ token }) {
   const handleSectionChange = (newSecId) => {
     setSectionId(newSecId);
     setProcessId('');
-    setColorId('');
 
     if (newSecId) {
       const secEmps = employees.filter(e => e.section_id === parseInt(newSecId));
@@ -207,6 +194,7 @@ export default function ProductionEntry({ token }) {
           return {
             ...c,
             card_no: matched ? matched.card_no : c.card_no,
+            emp_id: matched ? matched.id : null,
             emp_name: matched ? matched.name : ''
           };
         }
@@ -219,7 +207,7 @@ export default function ProductionEntry({ token }) {
   const handleAddCardRow = () => {
     setCards(prev => [
       ...prev,
-      { id: Date.now(), card_no: '', emp_name: '', quantity: '' }
+      { id: Date.now(), card_no: '', emp_id: null, emp_name: '', quantity: '' }
     ]);
   };
 
@@ -245,6 +233,7 @@ export default function ProductionEntry({ token }) {
         return {
           ...c,
           card_no: cardNoVal,
+          emp_id: matchedEmp ? matchedEmp.id : null,
           emp_name: matchedEmp ? matchedEmp.name : ''
         };
       }
@@ -279,6 +268,7 @@ export default function ProductionEntry({ token }) {
           return {
             ...c,
             card_no: matchedEmp.card_no,
+            emp_id: matchedEmp.id,
             emp_name: matchedEmp.name
           };
         }
@@ -286,7 +276,7 @@ export default function ProductionEntry({ token }) {
       }));
       toast.success(`"${secName}" সেকশনে ইমপ্লয়ী নিশ্চিত করা হয়েছে: ${matchedEmp.card_no} (${matchedEmp.name})`);
     } else {
-      setCards(prev => prev.map(c => c.id === id ? { ...c, emp_name: '' } : c));
+      setCards(prev => prev.map(c => c.id === id ? { ...c, emp_id: null, emp_name: '' } : c));
       toast.error(`"${secName}" সেকশনে "${cardNoVal}" কার্ড নম্বরের কোনো একটিভ ইমপ্লয়ী পাওয়া যায়নি!`);
     }
   };
@@ -299,8 +289,8 @@ export default function ProductionEntry({ token }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!sectionId || !styleId || !processId || !colorId || !productionDate) {
-      toast.error('দয়া করে সেকশন, স্টাইল, প্রসেস, কালার ও প্রোডাকশন ডেট নির্বাচন করুন!');
+    if (!sectionId || !styleId || !processId || !productionDate) {
+      toast.error('দয়া করে সেকশন, স্টাইল, প্রসেস ও প্রোডাকশন ডেট নির্বাচন করুন!');
       return;
     }
 
@@ -324,10 +314,9 @@ export default function ProductionEntry({ token }) {
       section_id: parseInt(sectionId),
       style_id: parseInt(styleId),
       process_id: parseInt(processId),
-      color_id: parseInt(colorId),
       production_date: productionDate,
       items: validCards.map(c => ({
-        card_no: c.card_no,
+        card_no: c.emp_id ? String(c.emp_id) : c.card_no,
         quantity: parseInt(c.quantity)
       }))
     };
@@ -359,22 +348,12 @@ export default function ProductionEntry({ token }) {
   // Options formatting for SearchableSelect Style
   const styleOptions = styles?.map((st) => ({
     id: st.id,
-    label: st.style_no,
-    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+    label: st.style_no
   })) || [];
 
   // Section + Style wise process load
   const filteredProcesses = (sectionId && styleId)
     ? processes.filter(p => p.section_id === parseInt(sectionId) && p.style_id === parseInt(styleId))
-    : [];
-
-  // Process wise color load
-  const filteredColors = (sectionId && styleId && processId)
-    ? colors.filter(c =>
-      c.section_id === parseInt(sectionId) &&
-      c.style_id === parseInt(styleId) &&
-      c.process_id === parseInt(processId)
-    )
     : [];
 
   const totalQuantity = cards.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
@@ -389,9 +368,9 @@ export default function ProductionEntry({ token }) {
             প্রোডাকশন ব্যাচ ও ক্যাটাগরি নির্বাচন
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">সেকশন *</label>
               <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
                 value={sectionId}
@@ -413,7 +392,6 @@ export default function ProductionEntry({ token }) {
                 onChange={(selectedId) => {
                   setStyleId(selectedId);
                   setProcessId('');
-                  setColorId('');
                 }}
                 placeholder="Select Style..."
                 required
@@ -427,7 +405,6 @@ export default function ProductionEntry({ token }) {
                 value={processId}
                 onChange={(e) => {
                   setProcessId(e.target.value);
-                  setColorId('');
                 }}
                 required
                 disabled={!sectionId || !styleId}
@@ -443,30 +420,6 @@ export default function ProductionEntry({ token }) {
                 </option>
                 {filteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">রং (Color) *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                value={colorId}
-                onChange={(e) => setColorId(e.target.value)}
-                required
-                disabled={!sectionId || !styleId || !processId}
-              >
-                <option value="">
-                  {!sectionId || !styleId
-                    ? "Select section & style first"
-                    : !processId
-                      ? "Select process first"
-                      : filteredColors.length === 0
-                        ? "No colors found for this process"
-                        : "Select Color"}
-                </option>
-                {filteredColors.map((c) => (
-                  <option key={c.id} value={c.id}>{c.color_name}</option>
                 ))}
               </select>
             </div>
@@ -525,8 +478,8 @@ export default function ProductionEntry({ token }) {
                     type="text"
                     readOnly
                     className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
-                        ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold'
-                        : 'bg-[#0b0f19]/30 border-red-500/20 text-red-400 placeholder:text-slate-600'
+                      ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold'
+                      : 'bg-[#0b0f19]/30 border-red-500/20 text-red-400 placeholder:text-slate-600'
                       }`}
                     value={item.emp_name}
                     placeholder="সেকশন ওয়াইজ ইমপ্লয়ীর নাম"
@@ -542,8 +495,8 @@ export default function ProductionEntry({ token }) {
                     type="number"
                     disabled={!item.emp_name}
                     className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
-                        ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
-                        : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+                      ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
+                      : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
                       }`}
                     value={item.quantity}
                     onChange={(e) => handleCardFieldChange(item.id, 'quantity', e.target.value)}

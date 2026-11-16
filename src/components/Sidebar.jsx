@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
+import {
   Home, Layers, UserCheck, Bookmark, ListChecks, DollarSign, Truck, ShoppingBag,
-  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, ChevronLeft, Clock, RefreshCw, FileText, BarChart2
+  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, Building, ChevronLeft, Clock, RefreshCw, FileText, BarChart2, KeyRound, Warehouse
 } from 'lucide-react';
 
 export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen }) {
@@ -32,7 +32,7 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
     if (['/dashboard/reports'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, reports: true }));
     }
-    if (['/dashboard/user', '/dashboard/user-permission', '/dashboard/section', '/dashboard/company-profile'].some(p => path.startsWith(p))) {
+    if (['/dashboard/user', '/dashboard/user-permission', '/dashboard/change-password', '/dashboard/department', '/dashboard/section', '/dashboard/block', '/dashboard/unit', '/dashboard/company-profile'].some(p => path.startsWith(p))) {
       setOpenMenus(prev => ({ ...prev, settings: true }));
     }
   }, [location.pathname]);
@@ -54,20 +54,17 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
     return paths.includes(location.pathname);
   };
 
-  const getMenuItemClass = (isActive) => 
-    `flex items-center gap-3 py-3 px-4 rounded-xl text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-all text-sm font-medium ${
-      isActive ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/10' : ''
+  const getMenuItemClass = (isActive) =>
+    `flex items-center gap-3 py-3 px-4 rounded-xl text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-all text-sm font-medium ${isActive ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/10' : ''
     }`;
 
-  const getGroupHeaderClass = (isActive) => 
-    `flex items-center justify-between py-3 px-4 rounded-xl text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-all text-sm font-medium cursor-pointer ${
-      isActive ? 'text-sky-400 font-semibold bg-white/2' : ''
+  const getGroupHeaderClass = (isActive) =>
+    `flex items-center justify-between py-3 px-4 rounded-xl text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-all text-sm font-medium cursor-pointer ${isActive ? 'text-sky-400 font-semibold bg-white/2' : ''
     }`;
 
   return (
-    <aside className={`w-[280px] bg-[#131b2e] border-r border-white/6 flex flex-col h-screen fixed left-0 top-0 transition-transform duration-300 z-40 ${
-      sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
-    }`}>
+    <aside className={`w-[280px] bg-[#131b2e] border-r border-white/6 flex flex-col h-screen fixed left-0 top-0 transition-transform duration-300 z-40 ${sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+      }`}>
       {/* Header */}
       <div className="h-[70px] border-b border-white/6 px-5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -77,7 +74,7 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
           <span className="font-sans font-bold text-slate-100 tracking-wide text-sm">BEST WOOL APP</span>
         </div>
         {setSidebarOpen && (
-          <button 
+          <button
             onClick={() => setSidebarOpen(false)}
             className="w-8 h-8 rounded-lg border border-white/6 text-slate-400 hover:text-slate-100 hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer"
             title="সাইডবার লুকান (Hide Sidebar)"
@@ -91,90 +88,89 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
       <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-thin">
         {/* Overview link */}
         {hasPermission('dashboard') && (
-          <NavLink 
-            to="/dashboard" 
+          <NavLink
+            to="/dashboard"
             end
             className={({ isActive }) => getMenuItemClass(isActive)}
           >
             <Home size={18} />
-            <span>ড্যাশবোর্ড ওভারভিউ</span>
+            <span>ড্যাশবোর্ড</span>
           </NavLink>
         )}
 
         {/* --- 1. Order Management Accordion --- */}
-        {(hasPermission('buyer') || hasPermission('style') || hasPermission('process') || hasPermission('color') || 
+        {(hasPermission('buyer') || hasPermission('style') || hasPermission('process') || hasPermission('color') ||
           hasPermission('piece_rate') || hasPermission('buyer_order_info') || hasPermission('yarn_challan')) && (
-          <div className="space-y-1">
-            <div 
-              className={getGroupHeaderClass(isGroupActive([
-                '/dashboard/buyer', '/dashboard/style', '/dashboard/process', '/dashboard/color', 
-                '/dashboard/piece-rate', '/dashboard/buyer-order-info', '/dashboard/yarn-challan'
-              ]))}
-              onClick={() => toggleMenu('orderManagement')}
-            >
-              <span className="flex items-center gap-3">
-                <Layers size={18} />
-                <span>অর্ডার ম্যানেজমেন্ট</span>
-              </span>
-              <ChevronDown 
-                size={16} 
-                className={`transition-transform duration-300 ${openMenus.orderManagement ? 'rotate-180' : ''}`} 
-              />
-            </div>
-            
-            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${
-              openMenus.orderManagement ? 'max-h-[500px] py-1.5' : 'max-h-0'
-            }`}>
-              {hasPermission('buyer') && (
-                <NavLink to="/dashboard/buyer" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <UserCheck size={16} />
-                  <span>বায়ার (Buyer)</span>
-                </NavLink>
-              )}
-              {hasPermission('style') && (
-                <NavLink to="/dashboard/style" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <Bookmark size={16} />
-                  <span>স্টাইল (Style)</span>
-                </NavLink>
-              )}
-              {hasPermission('process') && (
-                <NavLink to="/dashboard/process" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <ListChecks size={16} />
-                  <span>প্রসেস (Process)</span>
-                </NavLink>
-              )}
-              {hasPermission('color') && (
+            <div className="space-y-1">
+              <div
+                className={getGroupHeaderClass(isGroupActive([
+                  '/dashboard/buyer', '/dashboard/style', '/dashboard/process', '/dashboard/color',
+                  '/dashboard/piece-rate', '/dashboard/buyer-order-info', '/dashboard/yarn-challan'
+                ]))}
+                onClick={() => toggleMenu('orderManagement')}
+              >
+                <span className="flex items-center gap-3">
+                  <Layers size={18} />
+                  <span>অর্ডার ম্যানেজমেন্ট</span>
+                </span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-300 ${openMenus.orderManagement ? 'rotate-180' : ''}`}
+                />
+              </div>
+
+              <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${openMenus.orderManagement ? 'max-h-[500px] py-1.5' : 'max-h-0'
+                }`}>
+                {hasPermission('buyer') && (
+                  <NavLink to="/dashboard/buyer" className={({ isActive }) => getMenuItemClass(isActive)}>
+                    <UserCheck size={16} />
+                    <span>বায়ার (Buyer)</span>
+                  </NavLink>
+                )}
+                {hasPermission('style') && (
+                  <NavLink to="/dashboard/style" className={({ isActive }) => getMenuItemClass(isActive)}>
+                    <Bookmark size={16} />
+                    <span>স্টাইল (Style)</span>
+                  </NavLink>
+                )}
+                {hasPermission('process') && (
+                  <NavLink to="/dashboard/process" className={({ isActive }) => getMenuItemClass(isActive)}>
+                    <ListChecks size={16} />
+                    <span>প্রসেস (Process)</span>
+                  </NavLink>
+                )}
+                {/* {hasPermission('color') && (
                 <NavLink to="/dashboard/color" className={({ isActive }) => getMenuItemClass(isActive)}>
                   <Palette size={16} />
                   <span>কালার (Color)</span>
                 </NavLink>
-              )}
-              {hasPermission('piece_rate') && (
-                <NavLink to="/dashboard/piece-rate" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <DollarSign size={16} />
-                  <span>পিস রেট (Piece Rate)</span>
-                </NavLink>
-              )}
-              {hasPermission('buyer_order_info') && (
-                <NavLink to="/dashboard/buyer-order-info" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <ShoppingBag size={16} />
-                  <span>বায়ার অর্ডার ইনফো</span>
-                </NavLink>
-              )}
-              {hasPermission('yarn_challan') && (
-                <NavLink to="/dashboard/yarn-challan" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <Truck size={16} />
-                  <span>ইয়ার্ন চালান</span>
-                </NavLink>
-              )}
+              )} */}
+                {hasPermission('piece_rate') && (
+                  <NavLink to="/dashboard/piece-rate" className={({ isActive }) => getMenuItemClass(isActive)}>
+                    <DollarSign size={16} />
+                    <span>পিস রেট (Piece Rate)</span>
+                  </NavLink>
+                )}
+                {hasPermission('buyer_order_info') && (
+                  <NavLink to="/dashboard/buyer-order-info" className={({ isActive }) => getMenuItemClass(isActive)}>
+                    <ShoppingBag size={16} />
+                    <span>বায়ার অর্ডার ইনফো</span>
+                  </NavLink>
+                )}
+                {hasPermission('yarn_challan') && (
+                  <NavLink to="/dashboard/yarn-challan" className={({ isActive }) => getMenuItemClass(isActive)}>
+                    <Truck size={16} />
+                    <span>ইয়ার্ন চালান</span>
+                  </NavLink>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* --- 2. Production Info Accordion --- */}
         {(hasPermission('production_entry') || hasPermission('production_show')) && (
           <div className="space-y-1">
-            <div 
+            <div
               className={getGroupHeaderClass(isGroupActive([
                 '/dashboard/production-entry', '/dashboard/production-show'
               ]))}
@@ -184,15 +180,14 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
                 <Gauge size={18} />
                 <span>প্রোডাকশন ইনফো</span>
               </span>
-              <ChevronDown 
-                size={16} 
-                className={`transition-transform duration-300 ${openMenus.productionInfo ? 'rotate-180' : ''}`} 
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-300 ${openMenus.productionInfo ? 'rotate-180' : ''}`}
               />
             </div>
 
-            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${
-              openMenus.productionInfo ? 'max-h-96 py-1.5' : 'max-h-0'
-            }`}>
+            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${openMenus.productionInfo ? 'max-h-96 py-1.5' : 'max-h-0'
+              }`}>
               {hasPermission('production_entry') && (
                 <NavLink to="/dashboard/production-entry" className={({ isActive }) => getMenuItemClass(isActive)}>
                   <Edit3 size={16} />
@@ -211,8 +206,8 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
 
         {/* --- Employee Info Top Level Main Menu --- */}
         {hasPermission('employee_info') && (
-          <NavLink 
-            to="/dashboard/employee-info" 
+          <NavLink
+            to="/dashboard/employee-info"
             className={({ isActive }) => getMenuItemClass(isActive)}
           >
             <UserCheck size={18} />
@@ -223,7 +218,7 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
         {/* --- Pending Approval Accordion --- */}
         {(hasPermission('pending_buyer_order') || hasPermission('pending_rewinding') || user?.role === 'admin') && (
           <div className="space-y-1">
-            <div 
+            <div
               className={getGroupHeaderClass(isGroupActive([
                 '/dashboard/pending-buyer-order', '/dashboard/pending-rewinding'
               ]))}
@@ -233,15 +228,14 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
                 <Clock size={18} className="text-amber-400" />
                 <span>পেন্ডিং অ্যাপ্রুভাল</span>
               </span>
-              <ChevronDown 
-                size={16} 
-                className={`transition-transform duration-300 ${openMenus.pendingApproval ? 'rotate-180' : ''}`} 
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-300 ${openMenus.pendingApproval ? 'rotate-180' : ''}`}
               />
             </div>
 
-            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${
-              openMenus.pendingApproval ? 'max-h-96 py-1.5' : 'max-h-0'
-            }`}>
+            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${openMenus.pendingApproval ? 'max-h-96 py-1.5' : 'max-h-0'
+              }`}>
               {(hasPermission('pending_buyer_order') || user?.role === 'admin') && (
                 <NavLink to="/dashboard/pending-buyer-order" className={({ isActive }) => getMenuItemClass(isActive)}>
                   <ShoppingBag size={16} />
@@ -260,8 +254,8 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
 
         {/* --- Reports Direct Top Level Main Menu --- */}
         {(hasPermission('reports') || user?.role === 'admin' || user?.role === 'operator') && (
-          <NavLink 
-            to="/dashboard/reports" 
+          <NavLink
+            to="/dashboard/reports"
             className={({ isActive }) => getMenuItemClass(isActive)}
           >
             <BarChart2 size={18} />
@@ -270,11 +264,11 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
         )}
 
         {/* --- 3. Settings Accordion --- */}
-        {(hasPermission('user') || hasPermission('user_permission')) && (
+        {(hasPermission('user') || hasPermission('user_permission') || hasPermission('department') || hasPermission('section') || hasPermission('block') || hasPermission('unit') || hasPermission('company_profile')) && (
           <div className="space-y-1">
-            <div 
+            <div
               className={getGroupHeaderClass(isGroupActive([
-                '/dashboard/user', '/dashboard/user-permission', '/dashboard/section'
+                '/dashboard/user', '/dashboard/user-permission', '/dashboard/change-password', '/dashboard/department', '/dashboard/section', '/dashboard/block', '/dashboard/unit', '/dashboard/company-profile'
               ]))}
               onClick={() => toggleMenu('settings')}
             >
@@ -282,15 +276,44 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
                 <Settings size={18} />
                 <span>সেটিংস</span>
               </span>
-              <ChevronDown 
-                size={16} 
-                className={`transition-transform duration-300 ${openMenus.settings ? 'rotate-180' : ''}`} 
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-300 ${openMenus.settings ? 'rotate-180' : ''}`}
               />
             </div>
 
-            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${
-              openMenus.settings ? 'max-h-96 py-1.5' : 'max-h-0'
-            }`}>
+            <div className={`pl-4 space-y-1 overflow-hidden transition-all duration-300 ${openMenus.settings ? 'max-h-[500px] py-1.5' : 'max-h-0'
+              }`}>
+              {hasPermission('company_profile') && (
+                <NavLink to="/dashboard/company-profile" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <Building2 size={16} />
+                  <span>কোম্পানী প্রোফাইল</span>
+                </NavLink>
+              )}
+              {hasPermission('unit') && (
+                <NavLink to="/dashboard/unit" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <Warehouse size={16} />
+                  <span>ইউনিট (Unit)</span>
+                </NavLink>
+              )}
+              {hasPermission('department') && (
+                <NavLink to="/dashboard/department" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <Building size={16} />
+                  <span>ডিপার্টমেন্ট (Department)</span>
+                </NavLink>
+              )}
+              {hasPermission('section') && (
+                <NavLink to="/dashboard/section" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <Layers size={16} />
+                  <span>সেকশন (Section)</span>
+                </NavLink>
+              )}
+              {hasPermission('block') && (
+                <NavLink to="/dashboard/block" className={({ isActive }) => getMenuItemClass(isActive)}>
+                  <Layers size={16} />
+                  <span>ব্লক / লাইন (Block)</span>
+                </NavLink>
+              )}
               {hasPermission('user') && (
                 <NavLink to="/dashboard/user" className={({ isActive }) => getMenuItemClass(isActive)}>
                   <Users size={16} />
@@ -303,18 +326,10 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
                   <span>ইউজার পারমিশন</span>
                 </NavLink>
               )}
-              {hasPermission('section') && (
-                <NavLink to="/dashboard/section" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <Layers size={16} />
-                  <span>সেকশন (Section)</span>
-                </NavLink>
-              )}
-              {hasPermission('company_profile') && (
-                <NavLink to="/dashboard/company-profile" className={({ isActive }) => getMenuItemClass(isActive)}>
-                  <Building2 size={16} />
-                  <span>কোম্পানী প্রোফাইল</span>
-                </NavLink>
-              )}
+              <NavLink to="/dashboard/change-password" className={({ isActive }) => getMenuItemClass(isActive)}>
+                <KeyRound size={16} />
+                <span>পাসওয়ার্ড পরিবর্তন</span>
+              </NavLink>
             </div>
           </div>
         )}

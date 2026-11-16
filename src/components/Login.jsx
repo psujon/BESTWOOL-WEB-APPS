@@ -46,7 +46,7 @@ export default function Login({ onLoginSuccess }) {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20 text-white mb-4">
             <Lock size={28} />
           </div>
-          <h2 className="text-2xl font-bold text-slate-100 font-display">বেস্ট উল সোয়েটার্স লিঃ (এক্সটেনশন এন্ড ওয়্যারহাউজ)</h2>
+          <h2 className="text-2xl font-bold text-slate-100 font-display">বেস্ট উল সোয়েটার্স লিঃ</h2>
           <p className="text-slate-400 text-sm mt-1">লগইন করে সিস্টেমে প্রবেশ করুন</p>
         </div>
 

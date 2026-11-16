@@ -17,8 +17,12 @@ import ProductionEntry from './pages/ProductionInfo/ProductionEntry';
 import ProductionShow from './pages/ProductionInfo/ProductionShow';
 import UserPage from './pages/Settings/User';
 import UserPermission from './pages/Settings/UserPermission';
+import ChangePassword from './pages/Settings/ChangePassword';
 import DatabaseBackup from './pages/DatabaseBackup';
+import Department from './pages/Settings/Department';
 import Section from './pages/Settings/Section';
+import Block from './pages/Settings/Block';
+import Unit from './pages/Settings/Unit';
 import Color from './pages/OrderManagement/Color';
 import CompanyProfile from './pages/Settings/CompanyProfile';
 import EmployeeInfo from './pages/OrderManagement/EmployeeInfo';
@@ -179,7 +183,11 @@ export default function App() {
         <Route path="production-show" element={<ProductionShow token={token} />} />
         <Route path="user" element={<UserPage token={token} />} />
         <Route path="user-permission" element={<UserPermission token={token} />} />
+        <Route path="change-password" element={<ChangePassword token={token} user={user} />} />
+        <Route path="department" element={<Department token={token} />} />
         <Route path="section" element={<Section token={token} />} />
+        <Route path="block" element={<Block token={token} />} />
+        <Route path="unit" element={<Unit token={token} />} />
         <Route path="company-profile" element={<CompanyProfile token={token} />} />
         <Route path="database-backup" element={<DatabaseBackup token={token} />} />
       </Route>
