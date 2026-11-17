@@ -1,6 +1,21 @@
 const puppeteer = require('puppeteer');
 const { prisma } = require('../db');
 
+// Helper to get company profile or unit-specific branding
+async function getCompanyHeaderInfo(unitId) {
+  const companyProfile = await prisma.companyProfile.findFirst();
+  let companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
+  let companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+  if (unitId) {
+    const unit = await prisma.unit.findUnique({ where: { id: unitId } });
+    if (unit) {
+      companyName = unit.name;
+      if (unit.address) companyAddress = unit.address;
+    }
+  }
+  return { companyName, companyAddress, companyProfile };
+}
+
 // 1. Employee List Report Data (JSON)
 exports.getEmployeeReport = async (req, res) => {
   try {
@@ -78,9 +93,7 @@ exports.generateEmployeePdf = async (req, res) => {
   try {
     const { section_id, status, search } = req.query;
 
-    const companyProfile = await prisma.companyProfile.findFirst();
-    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
-    const companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+    const { companyName, companyAddress } = await getCompanyHeaderInfo(req.unitId);
 
     const where = {};
 
@@ -260,19 +273,34 @@ exports.generateEmployeePdf = async (req, res) => {
 exports.generateMonthlyProductionPdf = async (req, res) => {
   let browser = null;
   try {
-    const { section_id, style_id, startDate, endDate } = req.query;
+    const { section_id, style_id, startDate, endDate, search } = req.query;
 
-    const companyProfile = await prisma.companyProfile.findFirst();
-    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
-    const companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+    const { companyName, companyAddress } = await getCompanyHeaderInfo(req.unitId);
 
     const where = {};
     if (section_id && section_id !== 'All') where.section_id = parseInt(section_id);
     if (style_id && style_id !== 'All') where.style_id = parseInt(style_id);
+    if (search && search !== 'All' && search.trim() !== '') {
+      where.employee = { card_no: search.trim() };
+    }
     if (startDate || endDate) {
       where.production_date = {};
       if (startDate) where.production_date.gte = new Date(startDate);
       if (endDate) where.production_date.lte = new Date(`${endDate}T23:59:59.999Z`);
+    }
+
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
     }
 
     const list = await prisma.production.findMany({
@@ -280,29 +308,15 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } }
+        process: { select: { process_name: true } },
+        employee: { select: { id: true, card_no: true, name: true } }
       },
       orderBy: { id: 'desc' }
     });
 
     const firstRecord = list[0] || {};
-    let empCardNo = firstRecord.card_no || '—';
-    let empName = '—';
-
-    if (firstRecord.card_no) {
-      const emp = await prisma.employee.findFirst({
-        where: {
-          OR: [
-            { id: parseInt(firstRecord.card_no) || 0 },
-            { card_no: firstRecord.card_no }
-          ]
-        }
-      });
-      if (emp) {
-        if (emp.card_no) empCardNo = emp.card_no;
-        if (emp.name) empName = emp.name;
-      }
-    }
+    let empCardNo = firstRecord.employee?.card_no || '—';
+    let empName = firstRecord.employee?.name || '—';
 
     // Fetch target section name dynamically
     let sectionName = 'Auto Winding';
@@ -562,19 +576,34 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
 exports.generateMonthlyWagesPdf = async (req, res) => {
   let browser = null;
   try {
-    const { section_id, style_id, startDate, endDate } = req.query;
+    const { section_id, style_id, startDate, endDate, search } = req.query;
 
-    const companyProfile = await prisma.companyProfile.findFirst();
-    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
-    const companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+    const { companyName, companyAddress } = await getCompanyHeaderInfo(req.unitId);
 
     const where = {};
     if (section_id && section_id !== 'All') where.section_id = parseInt(section_id);
     if (style_id && style_id !== 'All') where.style_id = parseInt(style_id);
+    if (search && search !== 'All' && search.trim() !== '') {
+      where.employee = { card_no: search.trim() };
+    }
     if (startDate || endDate) {
       where.production_date = {};
       if (startDate) where.production_date.gte = new Date(startDate);
       if (endDate) where.production_date.lte = new Date(`${endDate}T23:59:59.999Z`);
+    }
+
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
     }
 
     const list = await prisma.production.findMany({
@@ -582,7 +611,8 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } }
+        process: { select: { process_name: true } },
+        employee: { select: { id: true, card_no: true, name: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -590,23 +620,8 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
     const pieceRates = await prisma.pieceRate.findMany();
 
     const firstRecord = list[0] || {};
-    let empCardNo = firstRecord.card_no || '—';
-    let empName = '—';
-
-    if (firstRecord.card_no) {
-      const emp = await prisma.employee.findFirst({
-        where: {
-          OR: [
-            { id: parseInt(firstRecord.card_no) || 0 },
-            { card_no: firstRecord.card_no }
-          ]
-        }
-      });
-      if (emp) {
-        if (emp.card_no) empCardNo = emp.card_no;
-        if (emp.name) empName = emp.name;
-      }
-    }
+    let empCardNo = firstRecord.employee?.card_no || '—';
+    let empName = firstRecord.employee?.name || '—';
     const sectionName = firstRecord.section?.name || 'Auto Winding';
     const monthStr = startDate ? new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'July 2026';
 
@@ -916,20 +931,32 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
       return res.status(400).send('<html><body style="font-family:sans-serif; text-align:center; padding:50px; color:#e11d48;"><h2>তারিখ (হতে ও পর্যন্ত) নির্বাচন করা বাধ্যতামূলক! (Date range is required)</h2><p>দয়া করে ফিল্টার প্যানেল থেকে তারিখের রেঞ্জ সিলেক্ট করুন।</p></body></html>');
     }
 
-    const companyProfile = await prisma.companyProfile.findFirst();
-    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
-    const companyAddress = companyProfile?.address || 'SURABARI, KASHIMPUR, GAZIPUR SADAR, GAZIPUR.';
-
-    const where = {
-      section_id: parseInt(section_id),
-      production_date: {
-        gte: new Date(startDate),
-        lte: new Date(`${endDate}T23:59:59.999Z`)
-      }
-    };
+    const { companyName, companyAddress } = await getCompanyHeaderInfo(req.unitId);
 
     const start = new Date(startDate);
     const end = new Date(`${endDate}T23:59:59.999Z`);
+
+    const prodWhere = {
+      section_id: parseInt(section_id),
+      production_date: { gte: start, lte: end }
+    };
+    const allProdWhere = {
+      section_id: parseInt(section_id),
+      production_date: { lte: end }
+    };
+    const boWhere = { section_id: parseInt(section_id) };
+
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      prodWhere.AND = [unitCondition];
+      allProdWhere.AND = [unitCondition];
+      boWhere.unit_id = req.unitId;
+    }
 
     let sectionName = 'Auto Winding';
     const sec = await prisma.section.findUnique({ where: { id: parseInt(section_id) } });
@@ -937,10 +964,7 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
 
     // 1. Fetch present period production entries
     const list = await prisma.production.findMany({
-      where: {
-        section_id: parseInt(section_id),
-        production_date: { gte: start, lte: end }
-      },
+      where: prodWhere,
       include: {
         section: { select: { name: true } },
         style: { select: { id: true, style_no: true, buyer_id: true, buyer: { select: { name: true } } } },
@@ -952,15 +976,12 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
 
     // 2. Fetch all buyer orders for order quantity matching
     const buyerOrders = await prisma.buyerOrder.findMany({
-      where: { section_id: parseInt(section_id) }
+      where: boWhere
     });
 
     // 3. Fetch all production entries up to end date to compute totalProdQty and prevSalaryQty accurately
     const allProdUntilEnd = await prisma.production.findMany({
-      where: {
-        section_id: parseInt(section_id),
-        production_date: { lte: end }
-      }
+      where: allProdWhere
     });
 
     // Group present period production by (buyer, style, process)
@@ -1281,9 +1302,7 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
       return res.status(400).send('<html><body style="font-family:sans-serif; text-align:center; padding:50px; color:#e11d48;"><h2>সেকশন নির্বাচন করা বাধ্যতামূলক! (Section is required)</h2><p>দয়া করে ফিল্টার প্যানেল থেকে সেকশন সিলেক্ট করুন।</p></body></html>');
     }
 
-    const companyProfile = await prisma.companyProfile.findFirst();
-    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
-    const companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+    const { companyName, companyAddress } = await getCompanyHeaderInfo(req.unitId);
 
     let sectionName = 'Auto Winding';
     const sec = await prisma.section.findUnique({ where: { id: parseInt(section_id) } });
@@ -1309,6 +1328,12 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
         gte: new Date(startDate),
         lte: new Date(`${endDate}T23:59:59.999Z`)
       };
+    }
+    if (req.unitId) {
+      whereProd.OR = [
+        { unit_id: req.unitId },
+        { section: { unit_id: req.unitId } }
+      ];
     }
 
     const productionList = await prisma.production.findMany({
@@ -1530,10 +1555,10 @@ exports.generateBuyerOrderPdf = async (req, res) => {
     if (buyer_id && buyer_id !== 'All') where.buyer_id = parseInt(buyer_id);
     if (section_id && section_id !== 'All') where.section_id = parseInt(section_id);
     if (style_id && style_id !== 'All') where.style_id = parseInt(style_id);
+    if (req.unitId) where.unit_id = req.unitId;
+    if (req.unitId) where.unit_id = req.unitId;
 
-    const companyProfile = await prisma.companyProfile.findFirst();
-    const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
-    const companyAddress = companyProfile?.address || 'Surabari, Kashimpur, Gazipur.';
+    const { companyName, companyAddress } = await getCompanyHeaderInfo(req.unitId);
 
     const list = await prisma.buyerOrder.findMany({
       where,
@@ -1758,12 +1783,27 @@ exports.getProductionReport = async (req, res) => {
       if (endDate) where.production_date.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
+    if (req.unitId) {
+      const unitCondition = {
+        OR: [
+          { unit_id: req.unitId },
+          { section: { unit_id: req.unitId } }
+        ]
+      };
+      if (where.OR) {
+        where.AND = [unitCondition];
+      } else {
+        where.OR = unitCondition.OR;
+      }
+    }
+
     const list = await prisma.production.findMany({
       where,
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } }
+        process: { select: { process_name: true } },
+        employee: { select: { id: true, card_no: true, name: true } }
       },
       orderBy: { id: 'desc' }
     });
@@ -1777,6 +1817,8 @@ exports.getProductionReport = async (req, res) => {
       },
       data: list.map(item => ({
         ...item,
+        card_no: item.employee?.card_no || String(item.card_no_id),
+        emp_name: item.employee?.name || null,
         section_name: item.section?.name || '—',
         style_no: item.style?.style_no || '—',
         buyer_name: item.style?.buyer?.name || '—',
@@ -1798,6 +1840,7 @@ exports.getBuyerOrderReport = async (req, res) => {
     if (buyer_id && buyer_id !== 'All') where.buyer_id = parseInt(buyer_id);
     if (section_id && section_id !== 'All') where.section_id = parseInt(section_id);
     if (style_id && style_id !== 'All') where.style_id = parseInt(style_id);
+    if (req.unitId) where.unit_id = req.unitId;
 
     const list = await prisma.buyerOrder.findMany({
       where,

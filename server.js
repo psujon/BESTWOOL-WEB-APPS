@@ -15,6 +15,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// --- Cache Prevention Middleware for API ---
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // --- Mount Modular Router Modules ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/buyers', require('./routes/buyers'));
@@ -41,10 +49,21 @@ app.use('/api/reports', require('./routes/reports'));
 
 // --- Frontend Static Servicing in Production ---
 const distPath = path.join(__dirname, 'dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Fallback to React SPA index.html for non-API client routes
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

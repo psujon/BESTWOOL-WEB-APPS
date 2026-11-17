@@ -1,31 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Edit, Trash2, XCircle, Building2, Warehouse } from 'lucide-react';
+import { Layers, Edit, Trash2, XCircle, Building2, Globe, RefreshCw, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useUnit } from '../../context/UnitContext';
 
 export default function Section({ token }) {
-  const { units, selectedUnitId } = useUnit();
   const [sections, setSections] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Form states
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [departmentId, setDepartmentId] = useState('');
-  const [unitId, setUnitId] = useState(selectedUnitId !== 'ALL' ? selectedUnitId : '');
   const [status, setStatus] = useState('Active');
+
+  // Filter states
+  const [deptFilter, setDeptFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchSections();
     fetchDepartments();
+
+    const handleUnitChange = () => {
+      fetchSections();
+      fetchDepartments();
+    };
+    window.addEventListener('unit-changed', handleUnitChange);
+    return () => window.removeEventListener('unit-changed', handleUnitChange);
   }, [token]);
 
   const fetchSections = () => {
     setLoading(true);
     fetch('http://localhost:5000/api/sections', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
     })
       .then(res => res.json())
       .then(data => {
@@ -41,7 +53,10 @@ export default function Section({ token }) {
 
   const fetchDepartments = () => {
     fetch('http://localhost:5000/api/departments', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
     })
       .then(res => res.json())
       .then(data => {
@@ -63,7 +78,6 @@ export default function Section({ token }) {
       name: name.trim(),
       code: code.trim(),
       department_id: departmentId ? parseInt(departmentId) : null,
-      unit_id: unitId ? parseInt(unitId) : null,
       status
     };
 
@@ -115,7 +129,6 @@ export default function Section({ token }) {
     setName('');
     setCode('');
     setDepartmentId('');
-    setUnitId(selectedUnitId !== 'ALL' ? selectedUnitId : '');
     setStatus('Active');
   };
 
@@ -124,7 +137,6 @@ export default function Section({ token }) {
     setName(sec.name || '');
     setCode(sec.code || '');
     setDepartmentId(sec.department_id ? String(sec.department_id) : '');
-    setUnitId(sec.unit_id ? String(sec.unit_id) : '');
     setStatus(sec.status || 'Active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -168,15 +180,30 @@ export default function Section({ token }) {
     );
   };
 
+  // Filtered list
+  const filteredSections = sections.filter(sec => {
+    const matchesDept = deptFilter === 'ALL' || String(sec.department_id) === String(deptFilter);
+    const matchesSearch = !searchTerm || 
+      sec.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (sec.code && sec.code.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesDept && matchesSearch;
+  });
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Form Card */}
         <div className="lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
-          <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
-            <Layers size={18} className="text-sky-400" />
-            {editingId !== null ? 'সেকশন সংশোধন করুন' : 'নতুন সেকশন যুক্ত করুন'}
-          </h3>
+          <div className="mb-5">
+            <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <Layers size={18} className="text-sky-400" />
+              <span>{editingId !== null ? 'সেকশন সংশোধন করুন' : 'নতুন সেকশন যুক্ত করুন'}</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+              <Globe size={12} className="text-emerald-400" />
+              <span>সেকশনসমূহ সকল ইউনিটের জন্য গ্লোবাল</span>
+            </p>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">
@@ -195,11 +222,6 @@ export default function Section({ token }) {
                   </option>
                 ))}
               </select>
-              {departments.length === 0 && (
-                <span className="text-xs text-amber-400 mt-1 block">
-                  * আগে সেটিংস থেকে ডিপার্টমেন্ট তৈরি করুন
-                </span>
-              )}
             </div>
 
             <div>
@@ -228,25 +250,6 @@ export default function Section({ token }) {
                 placeholder="যেমন: KN-01"
                 required
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Warehouse size={15} className="text-sky-400" />
-                <span>আওতাধীন ইউনিট (Unit)</span>
-              </label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={unitId}
-                onChange={(e) => setUnitId(e.target.value)}
-              >
-                <option value="">-- ডিপার্টমেন্ট অনুসারে / সকল ইউনিট --</option>
-                {units.map((u) => (
-                  <option key={u.id} value={String(u.id)}>
-                    {u.name} {u.code ? `(${u.code})` : ''}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div>
@@ -284,12 +287,68 @@ export default function Section({ token }) {
 
         {/* List Card */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-              <Layers size={18} className="text-sky-400" />
-              <span>সেকশন তালিকা</span>
-            </h3>
-            <span className="text-xs text-slate-400">মোট সেকশন: {sections.length} টি</span>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-1">
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <Layers size={18} className="text-sky-400" />
+                <span>সেকশন তালিকা</span>
+              </h3>
+              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <Globe size={11} />
+                গ্লোবাল
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Department Filter Dropdown */}
+              <select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                className="bg-[#0b0f19]/70 border border-white/10 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 transition cursor-pointer"
+              >
+                <option value="ALL">সকল ডিপার্টমেন্ট ({sections.length})</option>
+                {departments.map(d => (
+                  <option key={d.id} value={String(d.id)}>
+                    {d.name} ({sections.filter(s => s.department_id === d.id).length})
+                  </option>
+                ))}
+              </select>
+
+              {/* Search Box */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="সেকশন বা কোড..."
+                  className="bg-[#0b0f19]/70 border border-white/10 text-slate-200 text-xs rounded-lg pl-2.5 pr-6 py-1.5 focus:outline-none focus:border-sky-500 transition w-32 sm:w-36"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                type="button"
+                onClick={() => { fetchSections(); fetchDepartments(); }}
+                className="p-1.5 text-slate-400 hover:text-sky-400 bg-white/5 hover:bg-white/10 border border-white/6 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs"
+                title="তালিকা রিফ্রেশ করুন"
+              >
+                <RefreshCw size={13} className={loading ? 'animate-spin text-sky-400' : ''} />
+                <span className="hidden sm:inline">রিফ্রেশ</span>
+              </button>
+
+              <span className="text-xs text-slate-400 whitespace-nowrap">
+                মোট: {filteredSections.length} টি
+              </span>
+            </div>
           </div>
 
           {loading ? (
@@ -305,20 +364,21 @@ export default function Section({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold">কোড</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">সেকশন এর নাম</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">ডিপার্টমেন্ট</th>
-                    <th className="py-3 px-4 text-slate-300 font-semibold">ইউনিট</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অবস্থা</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {sections.length === 0 ? (
+                  {filteredSections.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-10 text-slate-500">
-                        কোন সেকশন রেকর্ড পাওয়া যায়নি
+                      <td colSpan="6" className="text-center py-10 text-slate-500">
+                        {searchTerm || deptFilter !== 'ALL' 
+                          ? 'ফিল্টার অনুযায়ী কোনো সেকশন রেকর্ড পাওয়া যায়নি' 
+                          : 'কোন সেকশন রেকর্ড পাওয়া যায়নি'}
                       </td>
                     </tr>
                   ) : (
-                    sections.map((sec, index) => (
+                    filteredSections.map((sec, index) => (
                       <tr key={sec.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400 text-center">{index + 1}</td>
                         <td className="py-3.5 px-4 text-slate-200">
@@ -335,16 +395,6 @@ export default function Section({ token }) {
                             </span>
                           ) : (
                             <span className="text-slate-500 text-xs italic">কোন ডিপার্টমেন্ট নেই</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-300 text-xs">
-                          {sec.unit ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                              <Warehouse size={11} />
-                              {sec.unit.name}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500 text-xs">সকল ইউনিট</span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-center">{getStatusBadge(sec.status)}</td>

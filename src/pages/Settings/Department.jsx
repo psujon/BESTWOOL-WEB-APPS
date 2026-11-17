@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Edit, Trash2, XCircle, Layers, Warehouse } from 'lucide-react';
+import { Building2, Edit, Trash2, XCircle, Layers, Globe, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useUnit } from '../../context/UnitContext';
 
 export default function Department({ token }) {
-  const { units, selectedUnitId } = useUnit();
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -12,18 +10,25 @@ export default function Department({ token }) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [status, setStatus] = useState('Active');
-  const [unitId, setUnitId] = useState(selectedUnitId !== 'ALL' ? selectedUnitId : '');
 
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchDepartments();
+
+    // Re-fetch on global unit change event
+    const handleUnitChange = () => fetchDepartments();
+    window.addEventListener('unit-changed', handleUnitChange);
+    return () => window.removeEventListener('unit-changed', handleUnitChange);
   }, [token]);
 
   const fetchDepartments = () => {
     setLoading(true);
     fetch('http://localhost:5000/api/departments', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
     })
       .then(res => res.json())
       .then(data => {
@@ -47,7 +52,6 @@ export default function Department({ token }) {
     const payload = {
       name: name.trim(),
       code: code ? code.trim() : '',
-      unit_id: unitId ? parseInt(unitId) : null,
       status
     };
 
@@ -99,14 +103,12 @@ export default function Department({ token }) {
     setName('');
     setCode('');
     setStatus('Active');
-    setUnitId(selectedUnitId !== 'ALL' ? selectedUnitId : '');
   };
 
   const handleEdit = (dept) => {
     setEditingId(dept.id);
     setName(dept.name || '');
     setCode(dept.code || '');
-    setUnitId(dept.unit_id ? String(dept.unit_id) : '');
     setStatus(dept.status || 'Active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -155,10 +157,16 @@ export default function Department({ token }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Form Card */}
         <div className="lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
-          <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
-            <Building2 size={18} className="text-sky-400" />
-            {editingId !== null ? 'ডিপার্টমেন্ট সংশোধন করুন' : 'নতুন ডিপার্টমেন্ট যুক্ত করুন'}
-          </h3>
+          <div className="mb-5">
+            <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <Building2 size={18} className="text-sky-400" />
+              <span>{editingId !== null ? 'ডিপার্টমেন্ট সংশোধন করুন' : 'নতুন ডিপার্টমেন্ট যুক্ত করুন'}</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+              <Globe size={12} className="text-emerald-400" />
+              <span>ডিপার্টমেন্টসমূহ সকল ইউনিটের জন্য গ্লোবাল</span>
+            </p>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">
@@ -183,25 +191,6 @@ export default function Department({ token }) {
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="যেমন: DEPT-01"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Warehouse size={15} className="text-sky-400" />
-                <span>আওতাধীন ইউনিট (Unit)</span>
-              </label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-                value={unitId}
-                onChange={(e) => setUnitId(e.target.value)}
-              >
-                <option value="">-- সকল ইউনিট (All Units) --</option>
-                {units.map((u) => (
-                  <option key={u.id} value={String(u.id)}>
-                    {u.name} {u.code ? `(${u.code})` : ''}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div>
@@ -240,11 +229,28 @@ export default function Department({ token }) {
         {/* List Card */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-              <Building2 size={18} className="text-sky-400" />
-              <span>ডিপার্টমেন্ট তালিকা</span>
-            </h3>
-            <span className="text-xs text-slate-400">মোট ডিপার্টমেন্ট: {departments.length} টি</span>
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <Building2 size={18} className="text-sky-400" />
+                <span>ডিপার্টমেন্ট তালিকা</span>
+              </h3>
+              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <Globe size={11} />
+                গ্লোবাল
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400">মোট ডিপার্টমেন্ট: {departments.length} টি</span>
+              <button
+                type="button"
+                onClick={fetchDepartments}
+                className="p-1.5 text-slate-400 hover:text-sky-400 bg-white/5 hover:bg-white/10 border border-white/6 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs"
+                title="রিফ্রেশ করুন"
+              >
+                <RefreshCw size={13} className={loading ? 'animate-spin text-sky-400' : ''} />
+                <span className="hidden sm:inline">রিফ্রেশ</span>
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -259,7 +265,6 @@ export default function Department({ token }) {
                     <th className="py-3 px-4 text-slate-300 font-semibold w-14 text-center">ক্রমিক</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">কোড</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold">ডিপার্টমেন্টের নাম</th>
-                    <th className="py-3 px-4 text-slate-300 font-semibold">ইউনিট</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">আওতাধীন সেকশন</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অবস্থা</th>
                     <th className="py-3 px-4 text-slate-300 font-semibold text-center">অ্যাকশন</th>
@@ -268,7 +273,7 @@ export default function Department({ token }) {
                 <tbody className="divide-y divide-white/6">
                   {departments.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-10 text-slate-500">
+                      <td colSpan="6" className="text-center py-10 text-slate-500">
                         কোনো ডিপার্টমেন্ট রেকর্ড পাওয়া যায়নি
                       </td>
                     </tr>
@@ -281,16 +286,6 @@ export default function Department({ token }) {
                         </td>
                         <td className="py-3.5 px-4">
                           <strong className="text-sky-400">{dept.name}</strong>
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-300 text-xs">
-                          {dept.unit ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                              <Warehouse size={11} />
-                              {dept.unit.name}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500 text-xs">সকল ইউনিট</span>
-                          )}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">

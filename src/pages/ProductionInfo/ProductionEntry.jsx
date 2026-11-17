@@ -316,7 +316,8 @@ export default function ProductionEntry({ token }) {
       process_id: parseInt(processId),
       production_date: productionDate,
       items: validCards.map(c => ({
-        card_no: c.emp_id ? String(c.emp_id) : c.card_no,
+        card_no_id: parseInt(c.emp_id),
+        card_no: c.card_no,
         quantity: parseInt(c.quantity)
       }))
     };

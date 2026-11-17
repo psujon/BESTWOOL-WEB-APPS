@@ -1,5 +1,93 @@
 const { prisma } = require('../db');
 
+function get6MonthRange(rangeKey, refDate = new Date()) {
+  const monthNamesEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNamesBn = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+  
+  let endYear, endMonth, startYear, startMonth;
+  let label = '';
+  
+  if (rangeKey === 'prev_6') {
+    const end = new Date(refDate.getFullYear(), refDate.getMonth() - 6, 1);
+    endYear = end.getFullYear();
+    endMonth = end.getMonth();
+    const start = new Date(endYear, endMonth - 5, 1);
+    startYear = start.getFullYear();
+    startMonth = start.getMonth();
+    label = 'বিগত ৬ মাস';
+  } else if (rangeKey === 'prev_12') {
+    const end = new Date(refDate.getFullYear(), refDate.getMonth() - 12, 1);
+    endYear = end.getFullYear();
+    endMonth = end.getMonth();
+    const start = new Date(endYear, endMonth - 5, 1);
+    startYear = start.getFullYear();
+    startMonth = start.getMonth();
+    label = 'পূর্ববর্তী ৬ মাস';
+  } else if (rangeKey === '2026_h2') {
+    startYear = 2026; startMonth = 6; endYear = 2026; endMonth = 11;
+    label = '২০২৬ দ্বিতীয়ার্ধ';
+  } else if (rangeKey === '2026_h1') {
+    startYear = 2026; startMonth = 0; endYear = 2026; endMonth = 5;
+    label = '২০২৬ প্রথমার্ধ';
+  } else if (rangeKey === '2025_h2') {
+    startYear = 2025; startMonth = 6; endYear = 2025; endMonth = 11;
+    label = '২০২৫ দ্বিতীয়ার্ধ';
+  } else if (rangeKey === '2025_h1') {
+    startYear = 2025; startMonth = 0; endYear = 2025; endMonth = 5;
+    label = '২০২৫ প্রথমার্ধ';
+  } else if (rangeKey && rangeKey.startsWith('offset_')) {
+    const offset = parseInt(rangeKey.split('_')[1], 10) || 0;
+    const end = new Date(refDate.getFullYear(), refDate.getMonth() - (offset * 6), 1);
+    endYear = end.getFullYear();
+    endMonth = end.getMonth();
+    const start = new Date(endYear, endMonth - 5, 1);
+    startYear = start.getFullYear();
+    startMonth = start.getMonth();
+    label = offset === 0 ? 'চলতি ৬ মাস' : offset === 1 ? 'বিগত ৬ মাস' : `${offset * 6} মাস পূর্বে`;
+  } else {
+    // Default: 'last_6' (ends at refDate month)
+    endYear = refDate.getFullYear();
+    endMonth = refDate.getMonth();
+    const start = new Date(endYear, endMonth - 5, 1);
+    startYear = start.getFullYear();
+    startMonth = start.getMonth();
+    label = 'চলতি ৬ মাস';
+  }
+  
+  const months = [];
+  let curY = startYear;
+  let curM = startMonth;
+  for (let i = 0; i < 6; i++) {
+    const mStr = String(curM + 1).padStart(2, '0');
+    months.push({
+      year: curY,
+      monthIndex: curM,
+      key: `${curY}-${mStr}`,
+      shortName: monthNamesEn[curM],
+      shortNameWithYear: `${monthNamesEn[curM]} '${String(curY).slice(2)}`,
+      nameBn: monthNamesBn[curM],
+      label: `${monthNamesEn[curM]} ${curY}`
+    });
+    curM++;
+    if (curM > 11) {
+      curM = 0;
+      curY++;
+    }
+  }
+  
+  const startDate = new Date(startYear, startMonth, 1, 0, 0, 0, 0);
+  const endDate = new Date(endYear, endMonth + 1, 0, 23, 59, 59, 999);
+  
+  return {
+    rangeKey: rangeKey || 'last_6',
+    label,
+    fullLabel: `${label} (${months[0].nameBn} ${startYear} - ${months[5].nameBn} ${endYear})`,
+    startDate,
+    endDate,
+    months
+  };
+}
+
 exports.getStats = async (req, res) => {
   try {
     const today = new Date();
@@ -28,13 +116,18 @@ exports.getStats = async (req, res) => {
       empWhere.AND = [unitFilter];
     }
 
-    const prodYearWhere = {
+    // Determine 6-Month Range for the Overview Chart
+    const chartRange = req.query.chartRange || req.query.range || 'last_6';
+    const rangeInfo = get6MonthRange(chartRange, today);
+
+    const prodRangeWhere = {
       production_date: {
-        gte: new Date(today.getFullYear(), 0, 1)
+        gte: rangeInfo.startDate,
+        lte: rangeInfo.endDate
       }
     };
     if (unitFilter) {
-      prodYearWhere.AND = [unitFilter];
+      prodRangeWhere.AND = [unitFilter];
     }
 
     const prodRecentWhere = unitFilter || {};
@@ -46,7 +139,7 @@ exports.getStats = async (req, res) => {
       activeEmployeesCount,
       recentProd,
       recentStyles,
-      yearProductions,
+      rangeProductions,
       dbBuyersList
     ] = await Promise.all([
       prisma.buyer.count(),
@@ -62,7 +155,8 @@ exports.getStats = async (req, res) => {
         orderBy: { id: 'desc' },
         include: {
           section: { select: { name: true } },
-          style: { select: { style_no: true } }
+          style: { select: { style_no: true } },
+          employee: { select: { card_no: true, name: true } }
         }
       }),
       prisma.style.findMany({
@@ -73,7 +167,7 @@ exports.getStats = async (req, res) => {
         }
       }),
       prisma.production.findMany({
-        where: prodYearWhere,
+        where: prodRangeWhere,
         include: {
           style: {
             include: {
@@ -89,35 +183,42 @@ exports.getStats = async (req, res) => {
 
     const todayQty = todayProdAggregate._sum.quantity || 0;
 
-    // Strictly map top buyers from database buyers
+    // Map buyer totals in this specific 6-month period
     const buyerTotals = {};
     dbBuyersList.forEach(b => { buyerTotals[b.name] = 0; });
 
-    yearProductions.forEach(p => {
+    let periodTotalQty = 0;
+    rangeProductions.forEach(p => {
       const bName = p.style?.buyer?.name;
       if (bName && buyerTotals[bName] !== undefined) {
         buyerTotals[bName] += p.quantity;
       }
+      periodTotalQty += (p.quantity || 0);
     });
 
     const sortedBuyers = Object.keys(buyerTotals).sort((a, b) => buyerTotals[b] - buyerTotals[a]);
     const topBuyers = sortedBuyers.slice(0, 4);
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentMonthIdx = today.getMonth();
-    const displayMonths = monthNames.slice(0, Math.max(6, currentMonthIdx + 1));
-
-    const productionOverview = displayMonths.map((mName, mIdx) => {
-      const row = { month: mName };
+    // Build the 6-Month Chart Dataset
+    const productionOverview = rangeInfo.months.map(m => {
+      const row = {
+        month: m.shortNameWithYear,
+        monthKey: m.key,
+        nameBn: m.nameBn,
+        year: m.year,
+        fullLabel: `${m.nameBn} ${m.year}`,
+        total: 0
+      };
       topBuyers.forEach(b => { row[b] = 0; });
 
-      yearProductions.forEach(p => {
+      rangeProductions.forEach(p => {
         const pDate = new Date(p.production_date);
-        if (pDate.getMonth() === mIdx) {
+        if (pDate.getFullYear() === m.year && pDate.getMonth() === m.monthIndex) {
           const bName = p.style?.buyer?.name;
           if (bName && topBuyers.includes(bName)) {
             row[bName] = (row[bName] || 0) + p.quantity;
           }
+          row.total += p.quantity;
         }
       });
 
@@ -128,7 +229,7 @@ exports.getStats = async (req, res) => {
     const activities = [
       ...recentProd.map(p => ({
         id: `prod-${p.id}`,
-        user: `কার্ড ${p.card_no}`,
+        user: p.employee?.card_no ? `কার্ড ${p.employee.card_no}` : (p.card_no_id ? `কার্ড ID #${p.card_no_id}` : 'কার্ড N/A'),
         action: `উৎপাদন এন্ট্রি: ${p.quantity} pcs (${p.section?.name || '—'} - ${p.style?.style_no || '—'})`,
         time: p.processed_date ? new Date(p.processed_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'আজ'
       })),
@@ -149,6 +250,12 @@ exports.getStats = async (req, res) => {
       ],
       productionOverview,
       topBuyers,
+      periodInfo: {
+        rangeKey: rangeInfo.rangeKey,
+        label: rangeInfo.label,
+        fullLabel: rangeInfo.fullLabel,
+        totalQty: periodTotalQty
+      },
       recentActivities: activities
     });
   } catch (err) {

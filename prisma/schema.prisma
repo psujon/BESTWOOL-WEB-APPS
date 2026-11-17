@@ -52,7 +52,7 @@ model Production {
   process_id      Int
   color_id        Int?
   production_date DateTime  @db.Date
-  card_no         String    @db.VarChar(100)
+  card_no_id      Int
   quantity        Int
   processed_by    Int?
   processed_date  DateTime? @default(now())
@@ -61,6 +61,7 @@ model Production {
   process         Process   @relation(fields: [process_id], references: [id], onDelete: Cascade)
   color           Color?    @relation(fields: [color_id], references: [id], onDelete: Cascade)
   unit            Unit?     @relation(fields: [unit_id], references: [id], onDelete: SetNull)
+  employee        Employee  @relation(fields: [card_no_id], references: [id], onDelete: Cascade)
 
   @@map("production")
 }
@@ -281,20 +282,21 @@ model Unit {
 }
 
 model Employee {
-  id             Int       @id @default(autoincrement())
-  card_no        String    @db.VarChar(50)
-  name           String    @db.VarChar(100)
-  designation    String    @db.VarChar(100)
-  join_date      DateTime  @db.Date
+  id             Int          @id @default(autoincrement())
+  card_no        String       @db.VarChar(50)
+  name           String       @db.VarChar(100)
+  designation    String       @db.VarChar(100)
+  join_date      DateTime     @db.Date
   section_id     Int
   block_id       Int?
   unit_id        Int?
-  status         String    @default("Active") @db.VarChar(20)
+  status         String       @default("Active") @db.VarChar(20)
   processed_by   Int?
-  processed_date DateTime? @default(now())
-  section        Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)
-  block          Block?    @relation(fields: [block_id], references: [id], onDelete: SetNull)
-  unit           Unit?     @relation(fields: [unit_id], references: [id], onDelete: SetNull)
+  processed_date DateTime?    @default(now())
+  section        Section      @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  block          Block?       @relation(fields: [block_id], references: [id], onDelete: SetNull)
+  unit           Unit?        @relation(fields: [unit_id], references: [id], onDelete: SetNull)
+  productions    Production[]
 
   @@map("employees")
 }

@@ -2,20 +2,10 @@ const { prisma } = require('../db');
 
 exports.getAll = async (req, res) => {
   try {
-    const where = {};
-    if (req.unitId) {
-      where.OR = [
-        { unit_id: req.unitId },
-        { department: { unit_id: req.unitId } }
-      ];
-    }
+    // Sections are global across all units in the company
     const sections = await prisma.section.findMany({
-      where,
       include: {
         department: {
-          select: { id: true, name: true, code: true, unit_id: true }
-        },
-        unit: {
           select: { id: true, name: true, code: true }
         }
       },
@@ -28,17 +18,8 @@ exports.getAll = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { name, code, status, department_id, unit_id } = req.body;
+  const { name, code, status, department_id } = req.body;
   const userId = req.user ? req.user.id : null;
-  let assignedUnitId = unit_id ? parseInt(unit_id) : (req.unitId || null);
-
-  // If unit_id not explicitly given, inherit from department if department has a unit
-  if (!assignedUnitId && department_id) {
-    const dept = await prisma.department.findUnique({ where: { id: parseInt(department_id) } });
-    if (dept && dept.unit_id) {
-      assignedUnitId = dept.unit_id;
-    }
-  }
 
   try {
     const section = await prisma.section.create({
@@ -47,15 +28,12 @@ exports.create = async (req, res) => {
         code, 
         status: status || 'Active',
         department_id: department_id ? parseInt(department_id) : null,
-        unit_id: assignedUnitId,
+        unit_id: null, // Global
         processed_by: userId,
         processed_date: new Date()
       },
       include: {
         department: {
-          select: { id: true, name: true, code: true, unit_id: true }
-        },
-        unit: {
           select: { id: true, name: true, code: true }
         }
       }
@@ -68,29 +46,22 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { name, code, status, department_id, unit_id } = req.body;
+  const { name, code, status, department_id } = req.body;
   const userId = req.user ? req.user.id : null;
   try {
-    const updateData = { 
-      name, 
-      code, 
-      status,
-      department_id: department_id ? parseInt(department_id) : null,
-      processed_by: userId,
-      processed_date: new Date()
-    };
-    if (unit_id !== undefined) {
-      updateData.unit_id = unit_id ? parseInt(unit_id) : null;
-    }
-
     const section = await prisma.section.update({
       where: { id: parseInt(id) },
-      data: updateData,
+      data: { 
+        name, 
+        code, 
+        status,
+        department_id: department_id ? parseInt(department_id) : null,
+        unit_id: null, // Global
+        processed_by: userId,
+        processed_date: new Date()
+      },
       include: {
         department: {
-          select: { id: true, name: true, code: true, unit_id: true }
-        },
-        unit: {
           select: { id: true, name: true, code: true }
         }
       }

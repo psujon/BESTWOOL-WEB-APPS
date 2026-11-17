@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Filter, Users, ShoppingBag, Gauge, ExternalLink, DollarSign, RotateCcw, ChevronDown, X, BarChart3, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useUnit } from '../../context/UnitContext';
 
 // Type & Select (Searchable Combobox) for Card No
 function SearchableCardSelect({ employees, value, onChange }) {
@@ -103,6 +104,7 @@ function SearchableCardSelect({ employees, value, onChange }) {
 }
 
 export default function ReportPage({ token }) {
+  const { selectedUnitId, selectedUnit } = useUnit();
   const [sections, setSections] = useState([]);
   const [employees, setEmployees] = useState([]);
 
@@ -127,25 +129,57 @@ export default function ReportPage({ token }) {
   const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth);
   const [endDate, setEndDate] = useState(getTodayDate);
 
-  useEffect(() => {
-    fetchOptions();
-  }, [token]);
-
   const fetchOptions = () => {
-    const headers = { 'Authorization': `Bearer ${token}` };
+    const headers = { 
+      'Authorization': `Bearer ${token}`,
+      'X-Unit-Id': selectedUnitId || 'ALL'
+    };
+    const params = new URLSearchParams();
+    if (selectedUnitId && selectedUnitId !== 'ALL') {
+      params.append('unit_id', selectedUnitId);
+    }
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
     // Fetch Sections
-    fetch('http://localhost:5000/api/sections', { headers })
+    fetch(`http://localhost:5000/api/sections${qs}`, { headers })
       .then(res => res.json())
-      .then(data => setSections(Array.isArray(data) ? data : []))
+      .then(data => {
+        const secList = Array.isArray(data) ? data : [];
+        setSections(secList);
+        setSelectedSection(prev => {
+          if (prev !== 'All' && !secList.some(s => String(s.id) === String(prev))) {
+            return 'All';
+          }
+          return prev;
+        });
+      })
       .catch(console.error);
 
     // Fetch Active Employees for Card No dropdown
-    fetch('http://localhost:5000/api/employees', { headers })
+    fetch(`http://localhost:5000/api/employees${qs}`, { headers })
       .then(res => res.json())
-      .then(data => setEmployees(Array.isArray(data) ? data : []))
+      .then(data => {
+        const empList = Array.isArray(data) ? data : [];
+        setEmployees(empList);
+        setSelectedCardNo(prev => {
+          if (prev !== 'All' && !empList.some(e => e.card_no === prev)) {
+            return 'All';
+          }
+          return prev;
+        });
+      })
       .catch(console.error);
   };
+
+  useEffect(() => {
+    fetchOptions();
+
+    const handleUnitChange = () => {
+      fetchOptions();
+    };
+    window.addEventListener('unit-changed', handleUnitChange);
+    return () => window.removeEventListener('unit-changed', handleUnitChange);
+  }, [token, selectedUnitId]);
 
   const handleResetFilters = () => {
     setSelectedSection('All');
@@ -155,10 +189,13 @@ export default function ReportPage({ token }) {
     toast.success('সকল ফিল্টার রিসেট করা হয়েছে!');
   };
 
-  // Helper to build query parameters
+  // Helper to build query parameters (includes selected unit_id)
   const buildQueryParams = () => {
     const queryParams = new URLSearchParams();
     queryParams.append('token', token);
+    if (selectedUnitId && selectedUnitId !== 'ALL') {
+      queryParams.append('unit_id', selectedUnitId);
+    }
     if (selectedSection !== 'All') queryParams.append('section_id', selectedSection);
     if (selectedCardNo !== 'All') queryParams.append('search', selectedCardNo);
     if (startDate) queryParams.append('startDate', startDate);
@@ -171,6 +208,9 @@ export default function ReportPage({ token }) {
     const params = new URLSearchParams();
     params.append('token', token);
 
+    if (selectedUnitId && selectedUnitId !== 'ALL') {
+      params.append('unit_id', selectedUnitId);
+    }
     if (selectedSection !== 'All') {
       params.append('section_id', selectedSection);
     }
@@ -256,16 +296,19 @@ export default function ReportPage({ token }) {
     <div className="space-y-6">
       
       <div className="relative z-40 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-white/6 pb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/6 pb-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter size={16} className="text-sky-400" />
             <span className="text-sm font-semibold text-slate-200">গ্লোবাল রিপোর্ট ফিল্টার (Global Report Filters)</span>
+            <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full font-medium ml-1">
+              {selectedUnit ? `🏭 ইউনিট: ${selectedUnit.name}` : '🌐 সকল ইউনিট (All Units)'}
+            </span>
           </div>
 
           <button
             type="button"
             onClick={handleResetFilters}
-            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-semibold rounded-lg text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-semibold rounded-lg text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <RotateCcw size={13} />
             <span>ফিল্টার রিসেট</span>
